@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentDialog
+    x:Class="Serva.App.Views.FolderBrowserDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="using:Serva.App.Views"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="{x:Bind Text.FolderDialogTitle, Mode=OneWay}"
+    CloseButtonText="{x:Bind Text.Cancel, Mode=OneWay}"
+    DefaultButton="Primary"
+    PrimaryButtonText="{x:Bind Text.UseCurrentFolder, Mode=OneWay}">
+
+    <Grid Width="460" RowSpacing="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TextBlock
+            x:Name="RootText"
+            FontSize="12"
+            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+            TextWrapping="Wrap" />
+
+        <Grid
+            Grid.Row="1"
+            ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Button
+                x:Name="BackToDrivesButton"
+                Click="BackToDrives_Click"
+                Visibility="Collapsed">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <FontIcon FontSize="12" Glyph="&#xE72B;" />
+                    <TextBlock Text="{x:Bind Text.BackToDrives, Mode=OneWay}" />
+                </StackPanel>
+            </Button>
+
+            <Button
+                x:Name="UpButton"
+                Grid.Column="1"
+                Click="Up_Click">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <FontIcon FontSize="12" Glyph="&#xE74A;" />
+                    <TextBlock Text="{x:Bind Text.UpOneLevel, Mode=OneWay}" />
+                </StackPanel>
+            </Button>
+
+            <TextBlock
+                x:Name="CurrentText"
+                Grid.Column="2"
+                VerticalAlignment="Center"
+                FontSize="13"
+                FontWeight="SemiBold"
+                TextTrimming="CharacterEllipsis" />
+        </Grid>
+
+        <Border
+            Grid.Row="2"
+            MinHeight="200"
+            MaxHeight="300"
+            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="1"
+            CornerRadius="6">
+            <ListView x:Name="EntryList" SelectionMode="None">
+                <ListView.ItemContainerStyle>
+                    <Style TargetType="ListViewItem">
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                        <Setter Property="Padding" Value="4,0" />
+                        <Setter Property="MinHeight" Value="36" />
+                    </Style>
+                </ListView.ItemContainerStyle>
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="local:FolderEntry">
+                        <Button
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Left"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Click="Entry_Click"
+                            Padding="8,6"
+                            Tag="{x:Bind}">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon x:Name="EntryIcon" FontSize="14" Glyph="&#xE8B7;" />
+                                <TextBlock FontSize="13" Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                        </Button>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+        </Border>
+    </Grid>
+</ContentDialog>

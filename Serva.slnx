@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Serva.App/Serva.App.csproj">
+      <Platform Project="ARM64" />
+    </Project>
+    <Project Path="src/Serva.Core.Tests/Serva.Core.Tests.csproj" />
+    <Project Path="src/Serva.Core/Serva.Core.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,67 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+		<TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+		<RootNamespace>Serva.App</RootNamespace>
+		<AssemblyName>Serva</AssemblyName>
+		<ApplicationManifest>app.manifest</ApplicationManifest>
+		<!-- 应用图标：exe 图标（资源管理器 / 快捷方式） -->
+		<ApplicationIcon>Assets\icon.ico</ApplicationIcon>
+
+		<!-- 版本号唯一来源：编译进程序集，「设置 → 关于」与更新检查都读它 -->
+		<Version>0.1.0</Version>
+
+		<!-- 本机为 Windows on ARM（win-arm64）；x64 同样可构建 -->
+		<Platforms>ARM64;x64</Platforms>
+		<RuntimeIdentifiers>win-arm64;win-x64</RuntimeIdentifiers>
+		<!-- 仅在外部命令行未指定 -r 参数时，才根据 Platform 自动推导 RID -->
+		<RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' and '$(Platform)' == 'ARM64'">win-arm64</RuntimeIdentifier>
+		<RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' and '$(Platform)' == 'x64'">win-x64</RuntimeIdentifier>
+		<RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-arm64</RuntimeIdentifier>
+
+		<!-- WinUI 3 / Windows App SDK：非打包（unpackaged）独立部署 -->
+		<UseWinUI>true</UseWinUI>
+		<WindowsPackageType>None</WindowsPackageType>
+
+		<!-- 关键修改：开启 .NET 10 与 Windows App SDK 运行时完整内嵌，供 Inno Setup 打包 -->
+		<SelfContained>true</SelfContained>
+		<WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<LangVersion>latest</LangVersion>
+		<Configurations>Debug;Release;x64;arm64</Configurations>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.WindowsAppSDK" Version="2.5.1" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- 图标随程序一起输出：.ico 用于窗口 / 任务栏图标，.png 用于设置页「关于」 -->
+		<Content Include="Assets\icon.ico" CopyToOutputDirectory="PreserveNewest" />
+		<Content Include="Assets\icon.png" CopyToOutputDirectory="PreserveNewest" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Serva.Core\Serva.Core.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Compile Update="Properties\Resources.Designer.cs">
+			<DesignTime>True</DesignTime>
+			<AutoGen>True</AutoGen>
+			<DependentUpon>Resources.resx</DependentUpon>
+		</Compile>
+	</ItemGroup>
+
+	<ItemGroup>
+		<EmbeddedResource Update="Properties\Resources.resx">
+			<Generator>ResXFileCodeGenerator</Generator>
+			<LastGenOutput>Resources.Designer.cs</LastGenOutput>
+		</EmbeddedResource>
+	</ItemGroup>
+
+</Project>
