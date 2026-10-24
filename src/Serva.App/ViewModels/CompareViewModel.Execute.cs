@@ -37,7 +37,8 @@ public sealed partial class CompareViewModel
 
         try
         {
-            foreach (MappingState state in _states)
+            // 执行期间设备可能被拔出 / 重新扫描，_states 会被清空重建：先取快照再遍历。
+            foreach (MappingState state in _states.ToArray())
             {
                 if (_runCts.IsCancellationRequested)
                 {
@@ -112,27 +113,13 @@ public sealed partial class CompareViewModel
             {
                 // 只保留完成提示（不再提示日志文件名）：
                 // 执行成功：合并了 硬盘C: 和 硬盘E: 的内容，100 个文件被更改。
-                string direction = Action switch
-                {
-                    ResultAction.OverwriteLocalToDevice => Text.F(
-                        "overwrote disk {1} with the contents of disk {0}",
-                        "用 硬盘{0} 的内容覆盖了 硬盘{1}",
-                        LocalDriveText,
-                        DeviceDriveText),
-                    ResultAction.OverwriteDeviceToLocal => Text.F(
-                        "overwrote disk {0} with the contents of disk {1}",
-                        "用 硬盘{1} 的内容覆盖了 硬盘{0}",
-                        LocalDriveText,
-                        DeviceDriveText),
-                    _ => Text.F(
-                        "merged the contents of disk {0} and disk {1}",
-                        "合并了 硬盘{0} 和 硬盘{1} 的内容",
-                        LocalDriveText,
-                        DeviceDriveText),
-                };
-
+                // 方向说明每次按当前语言现算 —— 否则切换语言后会出现「Run finished: 合并 …」这种中英混排。
                 SetBanner(
-                    () => Text.F("Run finished: {0}, {1:N0} files changed.", "执行成功：{0}，{1:N0} 个文件被更改。", direction, completed),
+                    () => Text.F(
+                        "Run finished: {0}, {1:N0} files changed.",
+                        "执行成功：{0}，{1:N0} 个文件被更改。",
+                        DirectionText(),
+                        completed),
                     InfoBarSeverity.Success);
             }
 
@@ -162,6 +149,25 @@ public sealed partial class CompareViewModel
     /// 写一条运行抬头日志，例如「由 C: 移动到 E:（合并）」/「由 C: 覆盖到 E:（覆盖 C: 内容）」，
     /// 这样在日志里能一眼看出这次运行的方向与处理方式。
     /// </summary>
+    /// <summary>「合并了 硬盘C: 和 硬盘G: 的内容」式的方向说明（每次按当前语言生成）。</summary>
+    private string DirectionText() => Action switch
+    {
+        ResultAction.OverwriteLocalToDevice => Text.F(
+            "overwrote disk {1} with the contents of disk {0}",
+            "用 硬盘{0} 的内容覆盖了 硬盘{1}",
+            LocalDriveText,
+            DeviceDriveText),
+        ResultAction.OverwriteDeviceToLocal => Text.F(
+            "overwrote disk {0} with the contents of disk {1}",
+            "用 硬盘{1} 的内容覆盖了 硬盘{0}",
+            LocalDriveText,
+            DeviceDriveText),
+        _ => Text.F(
+            "merged the contents of disk {0} and disk {1}",
+            "合并了 硬盘{0} 和 硬盘{1} 的内容",
+            LocalDriveText,
+            DeviceDriveText),
+    };
     private void RecordRunHeader(Journal journal)
     {
         if (_states.Count == 0)
@@ -188,11 +194,12 @@ public sealed partial class CompareViewModel
 
         // Message 里放简短的处理方式，供日志页顶部的「上次同步」信息直接取用：
         // 覆盖本机硬盘时特别标注，提醒用户本机文件已被设备内容覆盖。
+        // 存「处理方式代码」而不是翻译好的文字：切换语言后日志里的说明还能跟着变。
         string mode = Action switch
         {
-            ResultAction.OverwriteDeviceToLocal => Text.T("Overwrite local disk", "覆盖本机硬盘"),
-            ResultAction.OverwriteLocalToDevice => Text.T("Overwrite", "覆盖"),
-            _ => Text.T("Merge", "合并"),
+            ResultAction.OverwriteDeviceToLocal => RunHeaderCode.OverwriteDeviceToLocal,
+            ResultAction.OverwriteLocalToDevice => RunHeaderCode.OverwriteLocalToDevice,
+            _ => RunHeaderCode.Merge,
         };
 
         journal.Append(

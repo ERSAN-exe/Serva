@@ -18,6 +18,30 @@ public sealed class DeviceMappingFile
     /// <summary>写入时间（ISO 8601），仅便于人工排查。</summary>
     public string? SavedAt { get; set; }
 
-    /// <summary>对应关系列表。</summary>
+    /// <summary>写入本文件的电脑标识（见 <c>ComputerIdentity</c>）。</summary>
+    public string? ComputerId { get; set; }
+
+    /// <summary>写入本文件的电脑名（只便于人工查看）。</summary>
+    public string? ComputerName { get; set; }
+
+    /// <summary>
+    /// 对应关系列表（<strong>本机</strong>的那一段，同时便于人眼查看）。
+    /// 真正的存储按 <see cref="Computers"/> 分段保存。
+    /// </summary>
+    public List<MappingSetting> Mappings { get; set; } = [];
+
+    /// <summary>按电脑分段保存的对应关系：同一个设备在不同电脑上各用各的配置。</summary>
+    public List<ComputerMappingSection> Computers { get; set; } = [];
+}
+
+/// <summary>一台电脑在这台设备上保存过的对应关系。</summary>
+public sealed class ComputerMappingSection
+{
+    public string ComputerId { get; set; } = string.Empty;
+
+    public string ComputerName { get; set; } = string.Empty;
+
+    public string SavedAt { get; set; } = string.Empty;
+
     public List<MappingSetting> Mappings { get; set; } = [];
 }

@@ -55,7 +55,7 @@ public sealed partial class CompareViewModel : ObservableObject, IDisposable
         _patternSignature = PatternSignature();
 
         RemoveMappingCommand = new RelayCommand<MappingViewModel>(RemoveMapping);
-        RefreshDevicesCommand = new RelayCommand(RefreshDevices);
+        RefreshDevicesCommand = new RelayCommand(() => RefreshDevices(userInitiated: true));
         StartCommand = new AsyncRelayCommand(StartExecutionAsync, () => CanStart);
         CancelCommand = new RelayCommand(CancelExecution, () => IsRunning);
 

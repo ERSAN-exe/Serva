@@ -16,8 +16,11 @@ public sealed partial class CompareViewModel
     private string? _deviceSignature;
     private bool _isRefreshingDevices;
 
-    /// <summary>本次刷新是否由用户主动「重新扫描」触发：是的话对应关系以设备上的文件为准。</summary>
-    private bool _reloadMappingsFromDevice;
+    /// <summary>
+    /// 用户点过「重新扫描」之后，对应关系不再自动恢复（界面保持空白），
+    /// 直到换了一台设备或用户自己重新添加。
+    /// </summary>
+    private bool _suppressMappingRestore;
 
     /// <summary>挂接窗口：注册 WM_DEVICECHANGE 并启动 3 秒兜底轮询。</summary>
     public void AttachWindow(Window window)
@@ -58,27 +61,20 @@ public sealed partial class CompareViewModel
     /// <summary>供日志页调用：撤销之后比较结果已不可信，清空并提示重扫。</summary>
     public void InvalidateResults(Func<string> summary) => ResetResults(summary);
 
-    private void RefreshDevices()
+    /// <param name="userInitiated">是否是用户点了「重新扫描」（会清空对应关系且不再自动恢复）。</param>
+    private void RefreshDevices(bool userInitiated = false)
     {
         _deviceSignature = null;
 
-        // 用户主动「重新扫描」：对应关系属于设备，先清空界面上的旧列表，再按设备上的文件重新读取；
-        // 上一次的比较结果也一并作废（设备可能已经换过 / 内容已被改过）。
-        if (_selectedDevice is not null)
+        if (userInitiated)
         {
+            // 对应关系属于设备：重新扫描时界面清空，且不再自动恢复（配置仍在设备文件与本机设置里）。
             ClearMappingsInMemory();
             ResetResults(MappingsUpdatedPrompt);
-            _reloadMappingsFromDevice = true;
+            _suppressMappingRestore = true;
         }
 
-        try
-        {
-            ApplyDevices(ResolveVisibleDevices());
-        }
-        finally
-        {
-            _reloadMappingsFromDevice = false;
-        }
+        ApplyDevices(ResolveVisibleDevices());
 
         _deviceWatcher?.CheckNow();
         UpdateDerivedSummaries();
@@ -141,11 +137,7 @@ public sealed partial class CompareViewModel
         // 设备自己根目录里的 .serva-mappings.json 则由 SelectedDevice 的 setter 负责读取。
         if (_selectedDevice is { } current)
         {
-            // 「重新扫描」时以设备上的文件为准，不沿用本机设置里的兜底记录。
-            RestoreMappings(
-                current,
-                _reloadMappingsFromDevice ? null : lastKnownIdentity,
-                _reloadMappingsFromDevice ? null : lastKnownRoot);
+            RestoreMappings(current, lastKnownIdentity, lastKnownRoot);
         }
 
         UpdateDeviceBanner(devices);
@@ -166,6 +158,28 @@ public sealed partial class CompareViewModel
         }
     }
 
+    /// <summary>
+    /// 用户点了设备列表里的某一台设备：解除「重新扫描」后的抑制，并重新读取这台设备的对应关系
+    /// （对应关系跟着设备走，重新选择设备就应该看到它自己的配置）。
+    /// </summary>
+    public void SelectDevice(DeviceInfo device)
+    {
+        _suppressMappingRestore = false;
+
+        if (!ReferenceEquals(_selectedDevice, device))
+        {
+            SelectedDevice = device;
+        }
+
+        if (_selectedDevice is { } current)
+        {
+            RestoreMappings(current, _settings.LastTargetIdentity, _settings.LastTargetRoot);
+        }
+
+        OnPropertyChanged(nameof(MappingSummary));
+        OnPropertyChanged(nameof(CanScan));
+        OnPropertyChanged(nameof(CanAddMapping));
+    }
     /// <summary>优先按设备身份匹配（换了盘符也能找回），其次按盘符匹配，最后退回第一台设备。</summary>
     private static DeviceInfo? FindDevice(IReadOnlyList<DeviceInfo> devices, string? identity, string? rootPath)
     {

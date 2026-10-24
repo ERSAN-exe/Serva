@@ -26,6 +26,30 @@ public enum JournalOperationKind
     Move,
 }
 
+/// <summary>
+/// 运行抬头（<see cref="JournalOperationKind.Move"/>）在 <c>Message</c> 里保存的<strong>处理方式代码</strong>：
+/// 存代码而不是翻译好的文字，切换语言后日志里的说明还能跟着变。
+/// </summary>
+public static class RunHeaderCode
+{
+    public const string Merge = "merge";
+
+    public const string OverwriteLocalToDevice = "overwrite-local-to-device";
+
+    public const string OverwriteDeviceToLocal = "overwrite-device-to-local";
+
+    /// <summary>
+    /// 把新旧两种写法都归一到代码：新日志存的就是代码；旧日志里存的是当时翻译好的文字
+    /// （中文或英文），认出来之后这些旧日志也能跟着语言切换。
+    /// </summary>
+    public static string? Normalize(string? message) => message switch
+    {
+        Merge or "Merge" or "合并" => Merge,
+        OverwriteLocalToDevice or "Overwrite" or "覆盖" => OverwriteLocalToDevice,
+        OverwriteDeviceToLocal or "Overwrite local disk" or "覆盖本机硬盘" => OverwriteDeviceToLocal,
+        _ => null,
+    };
+}
 /// <summary>一条操作日志。</summary>
 public sealed record JournalEntry(
     DateTime TimestampUtc,
@@ -75,9 +99,48 @@ public sealed record JournalEntry(
     /// <summary>日志列表里的时间列文案：只显示时间。</summary>
     public string TimeText => TimestampUtc.ToLocalTime().ToString("HH:mm:ss");
 
-    public string DetailText => string.IsNullOrWhiteSpace(Message) || Kind == JournalOperationKind.Move
-        ? RelativePath
-        : $"{RelativePath} — {Message}";
+    public string DetailText => Kind == JournalOperationKind.Move
+        ? RunHeaderText()
+        : string.IsNullOrWhiteSpace(Message)
+            ? RelativePath
+            : $"{RelativePath} — {Message}";
+
+    /// <summary>
+    /// 运行抬头的说明：由「处理方式代码 + 两端盘符」按<strong>当前语言</strong>现算；
+    /// 旧日志里存的是当时翻译好的句子（<c>Message</c> 不是代码），直接显示原文。
+    /// </summary>
+    private string RunHeaderText()
+    {
+        string source = DriveOf(SourcePath);
+        string target = DriveOf(TargetPath);
+
+        return RunHeaderCode.Normalize(Message) switch
+        {
+            RunHeaderCode.Merge => CoreText.Format(
+                "Moved from {0} to {1} (merge)", "由 {0} 移动到 {1}（合并）", source, target),
+            RunHeaderCode.OverwriteLocalToDevice => CoreText.Format(
+                "Overwrote {1} with the contents of {0} (source {0})",
+                "由 {0} 覆盖到 {1}（覆盖 {0} 内容）",
+                source,
+                target),
+            RunHeaderCode.OverwriteDeviceToLocal => CoreText.Format(
+                "Overwrote {0} with the contents of {1} (source {1})",
+                "由 {1} 覆盖到 {0}（覆盖 {1} 内容）",
+                source,
+                target),
+            _ => RelativePath,
+        };
+    }
+
+    /// <summary>取路径的盘符（<c>G:\\x</c> → <c>G:</c>）；取不到时返回原路径。</summary>
+    private static string DriveOf(string path)
+    {
+        string? root = Path.GetPathRoot(path);
+
+        return string.IsNullOrEmpty(root)
+            ? path
+            : root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+    }
 }
 
 /// <summary>一个日志文件的概要（对应样稿日志页顶部横幅）。</summary>

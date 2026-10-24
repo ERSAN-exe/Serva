@@ -10,6 +10,7 @@ public sealed partial class SettingsViewModel
     private void ReloadFromSettings()
     {
         RebuildRuleLists();
+        RebuildPinnedFolders();
         NewRuleText = string.Empty;
         OnPropertyChanged(string.Empty);
     }

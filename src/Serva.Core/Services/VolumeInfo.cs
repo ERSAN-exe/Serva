@@ -37,6 +37,7 @@ public static class VolumeInfo
             {
                 DriveFilter.Removable => info.IsRemovableStorage,
                 DriveFilter.AllDataDrives => !info.IsSystemDrive,
+                DriveFilter.FixedDrives => !info.IsRemovableStorage,
                 _ => true,   // LocalDrives：TryDescribe 已剔除光驱 / 网络盘 / 未就绪的驱动器
             };
 

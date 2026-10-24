@@ -18,6 +18,7 @@ public sealed partial class LogViewModel : ObservableObject
     private string _lastSyncCaption = NoSyncCaption;
     private bool _statusIsError;
     private bool _isBusy;
+    private bool _isRunInProgress;
     private bool _hasJournals;
 
     /// <summary>没有任何运行记录时的占位文案（按当前语言生成）。</summary>
@@ -29,6 +30,9 @@ public sealed partial class LogViewModel : ObservableObject
 
         UndoCommand = new AsyncRelayCommand(UndoAsync, () => CanUndo);
         ClearCommand = new RelayCommand(Clear, () => CanClearLog);
+
+        // 每次启动都从「空日志」开始：上一次运行的日志不再展示，也不能再撤销。
+        Journal.DeleteAllJournals();
 
         Reload();
     }
@@ -84,14 +88,34 @@ public sealed partial class LogViewModel : ObservableObject
         private set => SetProperty(ref _lastSyncCaption, value);
     }
 
-    public bool CanUndo => _selectedJournal?.UndoableCount > 0 && !IsBusy;
+    public bool CanUndo => _selectedJournal?.UndoableCount > 0 && !IsBusy && !IsRunInProgress;
 
     /// <summary>有日志可清、且当前不忙时，「清除日志」才可用。</summary>
-    public bool CanClearLog => _hasJournals && !IsBusy;
+    public bool CanClearLog => _hasJournals && !IsBusy && !IsRunInProgress;
 
     public string UndoCaption => _selectedJournal is { UndoableCount: > 0 } summary
         ? AppText.Current.F("Undo this run ({0})", "撤销本次运行（{0} 项）", summary.UndoableCount)
         : AppText.Current.T("Undo this run", "撤销本次运行");
+
+    /// <summary>
+    /// 同步正在执行：此时日志还在写，撤销 / 清除日志都要禁用，执行结束后才可用。
+    /// </summary>
+    public bool IsRunInProgress
+    {
+        get => _isRunInProgress;
+        set
+        {
+            if (!SetProperty(ref _isRunInProgress, value))
+            {
+                return;
+            }
+
+            OnPropertyChanged(nameof(CanUndo));
+            OnPropertyChanged(nameof(CanClearLog));
+            UndoCommand.RaiseCanExecuteChanged();
+            ClearCommand.RaiseCanExecuteChanged();
+        }
+    }
 
     public bool IsBusy
     {

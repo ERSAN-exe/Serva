@@ -32,7 +32,6 @@ public sealed partial class JournalUndoer
                     case UndoActionKind.DeleteCreatedFile:
                         if (!File.Exists(step.TargetPath))
                         {
-                            DeleteEmptyCreatedDirectories(step);
                             skipped++;
                             break;
                         }
@@ -55,7 +54,6 @@ public sealed partial class JournalUndoer
                         journal?.Append(
                             JournalOperationKind.Undo, step.RelativePath, step.TargetPath, string.Empty, step.Bytes, true,
                             CoreText.Get("Undo: delete files copied in this run", "撤销：删除本次复制的文件"));
-                        DeleteEmptyCreatedDirectories(step);
                         deleted++;
                         break;
 
@@ -117,6 +115,9 @@ public sealed partial class JournalUndoer
             }
         }
 
+        // 最后统一清理「本次运行新建、现在已空」的目录（含被跳过步骤的目录）。
+        DeleteEmptyCreatedDirectories(plan);
+
         return new UndoResult
         {
             Deleted = deleted,
@@ -129,21 +130,34 @@ public sealed partial class JournalUndoer
     }
 
     /// <summary>
-    /// 删除本次运行<strong>新建</strong>、且现在是空目录的文件夹（从最内层开始）。
-    /// <para>文件删掉之后，这些目录本来就不该由这次运行留在目标端。</para>
+    /// 删除本次运行<strong>新建</strong>、且现在是空目录的文件夹（由深到浅）。
+    /// <para>
+    /// 收集整个撤销计划里记录的目录（包括被跳过的步骤）之后再删：
+    /// 这样即使某个文件因为「已被再次改动」被跳过，只要它已经不在了，空目录也能一并清掉。
+    /// </para>
     /// </summary>
-    private static void DeleteEmptyCreatedDirectories(UndoStep step)
+    private static void DeleteEmptyCreatedDirectories(UndoPlan plan)
     {
-        IReadOnlyList<string>? directories = step.CreatedDirectories;
-        if (directories is null || directories.Count == 0)
+        var directories = new List<string>();
+
+        foreach (UndoStep step in plan.Steps)
+        {
+            if (step.CreatedDirectories is { } created)
+            {
+                directories.AddRange(created);
+            }
+        }
+
+        if (directories.Count == 0)
         {
             return;
         }
 
-        for (int index = directories.Count - 1; index >= 0; index--)
-        {
-            string directory = directories[index];
+        // 长的（更深的）先删：内层删掉后外层才会变空。
+        directories.Sort(static (left, right) => right.Length.CompareTo(left.Length));
 
+        foreach (string directory in directories)
+        {
             try
             {
                 if (Directory.Exists(directory) && !Directory.EnumerateFileSystemEntries(directory).Any())
@@ -160,6 +174,7 @@ public sealed partial class JournalUndoer
             }
         }
     }
+
     private static void EnsureParent(string path)
     {
         string? directory = Path.GetDirectoryName(path);

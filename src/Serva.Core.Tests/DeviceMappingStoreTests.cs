@@ -63,7 +63,64 @@ public class DeviceMappingStoreTests
         Assert.Equal("备份/2026", Assert.Single(reloaded.Mappings).DeviceFolder);
     }
 
-    private static DeviceMappingFile FileWith(IReadOnlyList<string> localRoots, string deviceFolder) => new()
+    /// <summary>同一个设备在不同电脑上各用各的对应关系：保存本机那一段时不能覆盖别的电脑的记录。</summary>
+    [Fact]
+    public void Save_KeepsOtherComputersSections()
+    {
+        string root = SyncFixture.NewTempDirectory("device-mappings-multi-pc");
+        Directory.CreateDirectory(root);
+
+        Assert.True(DeviceMappingStore.Save(root, FileWith([@"C:\工作"], "备份/2026")));
+
+        // 模拟「另一台电脑」也写过这个文件：直接改磁盘上的文件（先摘掉隐藏属性）。
+        const string foreignId = "another-computer";
+        string path = DeviceMappingStore.FilePathFor(root);
+        DeviceMappingFile? onDisk = DeviceMappingStore.Load(root);
+        Assert.NotNull(onDisk);
+
+        onDisk!.Computers.Add(new ComputerMappingSection
+        {
+            ComputerId = foreignId,
+            ComputerName = "OTHER-PC",
+            SavedAt = DateTime.Now.ToString("s"),
+            Mappings = [new MappingSetting { LocalRoot = @"D:\别的电脑", DeviceFolder = "别的目录" }],
+        });
+
+        File.SetAttributes(path, FileAttributes.Normal);
+        File.WriteAllText(path, System.Text.Json.JsonSerializer.Serialize(onDisk, JsonOptions));
+
+        // 本机再保存一次：不能把另一台电脑的那一段覆盖掉。
+        Assert.True(DeviceMappingStore.Save(root, FileWith([@"C:\工作", @"D:\照片"], "备份/2026")));
+
+        DeviceMappingFile? reloaded = DeviceMappingStore.Load(root);
+        Assert.NotNull(reloaded);
+
+        // 本机只看到自己的那一段。
+        IReadOnlyList<MappingSetting> mine = DeviceMappingStore.MappingsForCurrentComputer(reloaded!);
+        Assert.Equal(2, mine.Count);
+        Assert.Equal(@"D:\照片", mine[1].LocalRoot);
+
+        // 另一台电脑的记录原样保留。
+        ComputerMappingSection other = Assert.Single(reloaded!.Computers, c => c.ComputerId == foreignId);
+        Assert.Equal(@"D:\别的电脑", Assert.Single(other.Mappings).LocalRoot);
+        Assert.Equal(2, reloaded.Computers.Count);
+    }
+
+    /// <summary>旧格式（只有顶层 Mappings、没有分段）仍能读出本机的对应关系。</summary>
+    [Fact]
+    public void LegacyFile_FallsBackToTopLevelMappings()
+    {
+        var legacy = new DeviceMappingFile
+        {
+            DeviceIdentity = "device-identity",
+            DeviceName = @"E:\ KINGSTON",
+            Mappings = [new MappingSetting { LocalRoot = @"C:\旧", DeviceFolder = "old" }],
+        };
+
+        MappingSetting mapping = Assert.Single(DeviceMappingStore.MappingsForCurrentComputer(legacy));
+        Assert.Equal(@"C:\旧", mapping.LocalRoot);
+    }
+    private static readonly System.Text.Json.JsonSerializerOptions JsonOptions = new()    {        WriteIndented = true,        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,    };    private static DeviceMappingFile FileWith(IReadOnlyList<string> localRoots, string deviceFolder) => new()
     {
         DeviceIdentity = "device-identity",
         DeviceName = @"E:\ KINGSTON",

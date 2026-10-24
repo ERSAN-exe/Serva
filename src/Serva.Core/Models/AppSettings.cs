@@ -41,6 +41,11 @@ public sealed class AppSettings
     /// <summary>用户已经忽略过的新版本号，避免每次启动重复提醒。</summary>
     public string? DismissedUpdateVersion { get; set; }
 
+    /// <summary>
+    /// 固定（收藏）的本机文件夹：会作为快捷入口出现在「选择本机文件夹」对话框里。
+    /// </summary>
+    public List<string> PinnedFolders { get; set; } = [];
+
     public AppSettings Clone() => new()
     {
         Theme = Theme,
@@ -53,5 +58,6 @@ public sealed class AppSettings
         CheckUpdatesOnStartup = CheckUpdatesOnStartup,
         LastUpdateCheckUtc = LastUpdateCheckUtc,
         DismissedUpdateVersion = DismissedUpdateVersion,
+        PinnedFolders = [.. PinnedFolders],
     };
 }

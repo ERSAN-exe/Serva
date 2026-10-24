@@ -201,6 +201,17 @@ public sealed class AppText : INotifyPropertyChanged
 
     public string RestoreDefaultRules => T("Restore default rules", "恢复默认规则");
 
+    // ============================ 固定文件夹 ============================
+
+    public string PinnedFoldersSection => T("Pinned folders", "固定文件夹");
+
+    public string PinnedFoldersHint => T(
+        "Pinned folders appear as shortcuts in the \"choose a local folder\" dialog.",
+        "固定的文件夹会作为快捷入口出现在「选择本机文件夹」对话框里。");
+
+    public string NoPinnedFolders => T("No pinned folders yet.", "还没有固定任何文件夹。");
+
+    public string AddPinnedFolder => T("Pin a folder", "固定一个文件夹");
     // ============================ 「关于」卡片 ============================
 
     /// <summary>GitHub 项目地址链接的显示文字。</summary>

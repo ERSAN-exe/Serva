@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Serva.App.Localization;
+using Serva.App.Services;
 using Serva.Core.Models;
 using Serva.Core.Services;
 
@@ -18,7 +19,12 @@ public enum FolderBrowserMode
 }
 
 /// <summary>列表中的一项：驱动器的根路径或一个子目录。</summary>
-public sealed record FolderEntry(string FullPath, string Name, bool IsDrive);
+public sealed record FolderEntry(
+    string FullPath, string Name, bool IsDrive, bool IsPinned = false, bool IsDesktop = false)
+{
+    /// <summary>列表项图标：图钉=固定文件夹，桌面=桌面图标，盘符=硬盘，其余=文件夹。</summary>
+    public string Glyph => IsPinned ? "\uE840" : IsDesktop ? "\uE8FC" : IsDrive ? "\uEDA2" : "\uE8B7";
+}
 
 /// <summary>
 /// 软件内置的文件夹浏览对话框（不使用系统资源管理器）。
@@ -29,6 +35,11 @@ public sealed partial class FolderBrowserDialog : ContentDialog
 
     /// <summary>不出现在盘符列表里的盘符根（本机模式下来自「当前选中的移动设备」）。</summary>
     private readonly IReadOnlyList<string> _excludedDrives;
+    /// <summary>是否在盘符页列出「设置里固定的文件夹」。</summary>
+    private readonly bool _showPinnedFolders;
+
+    /// <summary>盘符页列出哪些驱动器。</summary>
+    private readonly DriveFilter _driveFilter;
     private readonly FolderBrowserMode _mode;
     private readonly string _root;
     private string? _current;
@@ -36,14 +47,21 @@ public sealed partial class FolderBrowserDialog : ContentDialog
     public FolderBrowserDialog(
         FolderBrowserMode mode,
         string? root = null,
-        IEnumerable<string>? excludedDrives = null)
+        IEnumerable<string>? excludedDrives = null,
+        bool showPinnedFolders = true,
+        DriveFilter driveFilter = DriveFilter.LocalDrives)
     {
         InitializeComponent();
+
+        // 对话框挂在弹出层，主题需要显式指定（否则暗色模式下会弹亮色）。
+        RequestedTheme = AppearanceService.CurrentElementTheme;
 
         _mode = mode;
         _root = string.IsNullOrWhiteSpace(root) ? string.Empty : Normalize(root);
         _current = mode == FolderBrowserMode.SingleRoot && _root.Length > 0 ? _root : null;
         _excludedDrives = [.. (excludedDrives ?? []).Select(NormalizeDrive).Where(static d => d.Length > 0)];
+        _showPinnedFolders = showPinnedFolders;
+        _driveFilter = driveFilter;
 
         Title = mode == FolderBrowserMode.SingleRoot
             ? AppText.Current.ChooseDeviceFolder
@@ -107,7 +125,23 @@ public sealed partial class FolderBrowserDialog : ContentDialog
 
     private void LoadDrives()
     {
-        foreach (DeviceInfo drive in VolumeInfo.GetDrives(DriveFilter.LocalDrives))
+        // 设置里「固定」的本机文件夹：作为快捷入口排在最前面。
+        foreach (string folder in _showPinnedFolders ? SettingsService.Current.Value.PinnedFolders : [])
+        {
+            if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
+            {
+                continue;
+            }
+
+            if (_excludedDrives.Contains(NormalizeDrive(folder), StringComparer.Ordinal))
+            {
+                continue;
+            }
+
+            _entries.Add(new FolderEntry(folder, PinnedName(folder), false, IsPinned: true));
+        }
+
+        foreach (DeviceInfo drive in VolumeInfo.GetDrives(_driveFilter))
         {
             if (_excludedDrives.Contains(NormalizeDrive(drive.RootPath), StringComparer.Ordinal))
             {
@@ -121,7 +155,7 @@ public sealed partial class FolderBrowserDialog : ContentDialog
         string desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
         if (!string.IsNullOrEmpty(desktop) && Directory.Exists(desktop))
         {
-            _entries.Add(new FolderEntry(desktop, AppText.Current.DesktopFolder, false));
+            _entries.Add(new FolderEntry(desktop, AppText.Current.DesktopFolder, false, IsDesktop: true));
         }
 
         RootText.Text = AppText.Current.LocalDrivesCaption;
@@ -160,6 +194,16 @@ public sealed partial class FolderBrowserDialog : ContentDialog
         }
 
         Load();
+    }
+
+    /// <summary>刷新：重新枚举当前目录 / 盘符列表（插拔移动硬盘后不用重开对话框）。</summary>
+    private void Refresh_Click(object sender, RoutedEventArgs e) => Load();
+
+    /// <summary>固定文件夹在列表里的显示名：取最后一段；盘符根则显示盘符。</summary>
+    private static string PinnedName(string folder)
+    {
+        string name = Path.GetFileName(Path.TrimEndingDirectorySeparator(folder));
+        return name.Length == 0 ? folder : name;
     }
 
     /// <summary>直接回到盘符列表（只在本机模式的盘符内部可用）。</summary>

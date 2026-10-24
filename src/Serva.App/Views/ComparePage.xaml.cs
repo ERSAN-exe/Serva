@@ -3,6 +3,8 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Animation;
 using Serva.App.Controls;
 using Serva.App.Localization;
+using Serva.App.Services;
+using Serva.Core.Models;
 using Serva.App.ViewModels;
 
 namespace Serva.App.Views;
@@ -41,6 +43,15 @@ public sealed partial class ComparePage : Page
     /// <summary>关闭「发现新版本」提示条：记住这个版本，之后不再重复提醒。</summary>
     private void UpdateNotice_CloseClick(InfoBar sender, object args) => ViewModel.DismissUpdateNotice();
 
+    /// <summary>点选设备：重新读取这台设备的对应关系（「重新扫描」清空后，点一下设备就能恢复）。</summary>
+    private void Device_ItemClick(object sender, ItemClickEventArgs e)
+    {
+        if (e.ClickedItem is DeviceInfo device)
+        {
+            ViewModel.SelectDevice(device);
+        }
+    }
+
     /// <summary>关闭提示条：清掉视图模型里的句子，切换页面后不再出现。</summary>
     private void Banner_CloseClick(InfoBar sender, object args) => ViewModel.DismissBanner();
 
@@ -76,6 +87,7 @@ public sealed partial class ComparePage : Page
         var dialog = new ContentDialog
         {
             XamlRoot = XamlRoot,
+            RequestedTheme = AppearanceService.CurrentElementTheme,
             Title = AppText.Current.UndoDialogTitle,
             Content = content,
             PrimaryButtonText = AppText.Current.UndoButton,
@@ -100,6 +112,7 @@ public sealed partial class ComparePage : Page
         var dialog = new ContentDialog
         {
             XamlRoot = XamlRoot,
+            RequestedTheme = AppearanceService.CurrentElementTheme,
             Title = StatusPresentation.WarningTitle(AppText.Current.ClearLogDialogTitle),
             Content = new TextBlock
             {
@@ -140,6 +153,7 @@ public sealed partial class ComparePage : Page
             excludedDrives: [deviceRoot])
         {
             XamlRoot = XamlRoot,
+            RequestedTheme = AppearanceService.CurrentElementTheme,
         };
         if (await localDialog.ShowAsync() != ContentDialogResult.Primary
             || localDialog.SelectedPath is not { } localFolder)

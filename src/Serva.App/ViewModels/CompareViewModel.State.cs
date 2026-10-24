@@ -66,6 +66,8 @@ public sealed partial class CompareViewModel
             _settings.LastTargetIdentity = value.Identity;
             SaveSettings();
 
+            // 换了设备：解除「重新扫描」后的抑制，让新设备自己的对应关系恢复出来。
+            _suppressMappingRestore = false;
             RestoreMappings(value, knownIdentity, knownRoot);
 
             ResetResults(() => Mappings.Count > 0

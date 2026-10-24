@@ -161,7 +161,9 @@
                                 MaxHeight="200"
                                 ItemsSource="{x:Bind ViewModel.Devices}"
                                 SelectedItem="{x:Bind ViewModel.SelectedDevice, Mode=TwoWay}"
-                                SelectionMode="Single">
+                                SelectionMode="Single"
+                                IsItemClickEnabled="True"
+                                ItemClick="Device_ItemClick">
                                 <ListView.ItemTemplate>
                                     <DataTemplate x:DataType="models:DeviceInfo">
                                         <StackPanel Spacing="2">

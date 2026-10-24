@@ -48,6 +48,9 @@ public sealed partial class CompareViewModel
         {
             if (SetProperty(ref _isRunning, value))
             {
+                // 执行期间日志还在写：撤销 / 清除日志要禁用，执行结束后才可用。
+                Log.IsRunInProgress = value;
+
                 OnPropertyChanged(nameof(CanScan));
                 OnPropertyChanged(nameof(CanStart));
                 OnPropertyChanged(nameof(CanAddMapping));

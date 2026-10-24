@@ -27,6 +27,7 @@ public class SettingsStoreTests
         settings.CheckUpdatesOnStartup = false;
         settings.LastUpdateCheckUtc = new DateTimeOffset(2026, 10, 17, 8, 30, 0, TimeSpan.Zero);
         settings.DismissedUpdateVersion = "0.2.0";
+        settings.PinnedFolders = [@"C:\Pictures", @"D:\Cards"];
         store.Save(settings);
 
         AppSettings reloaded = new SettingsStore(path).Load();
@@ -43,6 +44,7 @@ public class SettingsStoreTests
         Assert.False(reloaded.CheckUpdatesOnStartup);
         Assert.Equal(settings.LastUpdateCheckUtc, reloaded.LastUpdateCheckUtc);
         Assert.Equal("0.2.0", reloaded.DismissedUpdateVersion);
+        Assert.Equal([@"C:\Pictures", @"D:\Cards"], reloaded.PinnedFolders);
 
         MappingSetting mapping = Assert.Single(reloaded.Mappings);
         Assert.Equal(@"C:\工作", mapping.LocalRoot);
@@ -65,6 +67,7 @@ public class SettingsStoreTests
         Assert.True(settings.CheckUpdatesOnStartup);   // 默认启动时检查更新
         Assert.Null(settings.LastUpdateCheckUtc);
         Assert.Null(settings.DismissedUpdateVersion);
+        Assert.Empty(settings.PinnedFolders);
     }
 
     [Fact]

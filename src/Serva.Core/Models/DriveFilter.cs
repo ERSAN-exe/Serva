@@ -41,4 +41,7 @@ public enum DriveFilter
 
     /// <summary>所有本地驱动器，包含系统盘（仅排除光驱、网络盘、未就绪的驱动器）。</summary>
     LocalDrives,
+
+    /// <summary>只显示本机硬盘（排除 U 盘、SD 卡等可移动设备）。</summary>
+    FixedDrives,
 }

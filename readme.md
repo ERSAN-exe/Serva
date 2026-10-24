@@ -12,8 +12,6 @@
 
 <h3>
 
-
-
 </h3>
 
 <p>
@@ -63,7 +61,7 @@ Author Email: ZErO23_FeedBack@outlook.com
 
 [![Pull Request](https://img.shields.io/badge/Pull%20Request-Submit%20Code-green?style=for-the-badge&logo=github)](https://github.com/ERSAN-exe/Serva/pulls)
 
-[![Feature Request](https://img.shields.io/badge/Feature%20Request-Suggestion-blue?style=for-the-badge&logo=lightbulb)](https://github.com/ERSAN-exe/Serva/issues/new)
+[![Feature Request](https://img.shields.io/badge/Feature%20Request-Suggestion-blue?style=for-the-badge&logo=lightbulb)](https://github.com/ERSAN-exe/Serva/discussions/new?category=ideas)
 
 <div align="center">
 

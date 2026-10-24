@@ -31,6 +31,7 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
@@ -54,9 +55,19 @@
                 </StackPanel>
             </Button>
 
+            <Button
+                x:Name="RefreshButton"
+                Grid.Column="2"
+                Click="Refresh_Click">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <FontIcon FontSize="12" Glyph="&#xE72C;" />
+                    <TextBlock Text="{x:Bind Text.Refresh, Mode=OneWay}" />
+                </StackPanel>
+            </Button>
+
             <TextBlock
                 x:Name="CurrentText"
-                Grid.Column="2"
+                Grid.Column="3"
                 VerticalAlignment="Center"
                 FontSize="13"
                 FontWeight="SemiBold"
@@ -90,8 +101,8 @@
                             Padding="8,6"
                             Tag="{x:Bind}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <FontIcon x:Name="EntryIcon" FontSize="14" Glyph="&#xE8B7;" />
-                                <TextBlock FontSize="13" Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
+                                <FontIcon FontSize="14" Glyph="{x:Bind Glyph}" />
+                                <TextBlock FontSize="13" Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind FullPath}" />
                             </StackPanel>
                         </Button>
                     </DataTemplate>

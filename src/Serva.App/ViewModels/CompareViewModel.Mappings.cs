@@ -134,6 +134,12 @@ public sealed partial class CompareViewModel
     }
     private void RestoreMappings(DeviceInfo device, string? knownIdentity, string? knownRoot)
     {
+
+        // 用户点过「重新扫描」：界面保持空白，不再自动恢复（设备文件与本机设置里的配置仍然保留）。
+        if (_suppressMappingRestore)
+        {
+            return;
+        }
         if (Mappings.Count > 0)
         {
             // 内存里已经有对应关系（例如同一台设备重新接入）：不重复从文件恢复，
@@ -191,8 +197,13 @@ public sealed partial class CompareViewModel
     {
         DeviceMappingFile? onDevice = DeviceMappingStore.Load(device.RootPath);
 
-        if (onDevice?.Mappings is { Count: > 0 } mappings
-            && (string.IsNullOrEmpty(onDevice.DeviceIdentity)
+        // 只取「本机」在这台设备上的那一段：同一个设备在不同电脑上各用各的配置。
+        IReadOnlyList<MappingSetting> mine = onDevice is null
+            ? []
+            : DeviceMappingStore.MappingsForCurrentComputer(onDevice);
+
+        if (mine is { Count: > 0 } mappings
+            && (string.IsNullOrEmpty(onDevice!.DeviceIdentity)
                 || string.Equals(onDevice.DeviceIdentity, device.Identity, StringComparison.OrdinalIgnoreCase)))
         {
             return mappings;

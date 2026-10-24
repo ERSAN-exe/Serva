@@ -77,6 +77,14 @@ public static class DeviceMappingStore
         {
             string path = FilePathFor(deviceRoot);
 
+            // 保留这台设备上「其他电脑」的记录：只替换本机那一段，
+            // 同一个设备在不同电脑上来回插时，各自的对应关系不会互相覆盖。
+            DeviceMappingFile? existing = Load(deviceRoot);
+
+            file.ComputerId = ComputerIdentity.CurrentId;
+            file.ComputerName = ComputerIdentity.CurrentName;
+            file.Computers = MergeSections(existing, file);
+
             ClearHidden(path);
 
             using (FileStream stream = File.Create(path))
@@ -92,6 +100,50 @@ public static class DeviceMappingStore
         {
             return false;
         }
+    }
+
+    /// <summary>
+    /// 取「本机」在这台设备上的对应关系。
+    /// <para>本机还没有分段记录时（旧格式文件只有顶层 <c>Mappings</c>），沿用顶层记录。</para>
+    /// </summary>
+    public static IReadOnlyList<MappingSetting> MappingsForCurrentComputer(DeviceMappingFile file)
+    {
+        string id = ComputerIdentity.CurrentId;
+
+        ComputerMappingSection? section = file.Computers
+            .FirstOrDefault(c => string.Equals(c.ComputerId, id, StringComparison.OrdinalIgnoreCase));
+
+        if (section is not null)
+        {
+            return section.Mappings;
+        }
+
+        return file.Computers.Count == 0 ? file.Mappings : [];
+    }
+
+    /// <summary>把「其他电脑」的分段原样保留，再写入（或替换）本机这一段。</summary>
+    private static List<ComputerMappingSection> MergeSections(DeviceMappingFile? existing, DeviceMappingFile incoming)
+    {
+        string id = ComputerIdentity.CurrentId;
+        var sections = new List<ComputerMappingSection>();
+
+        foreach (ComputerMappingSection section in existing?.Computers ?? [])
+        {
+            if (!string.Equals(section.ComputerId, id, StringComparison.OrdinalIgnoreCase))
+            {
+                sections.Add(section);
+            }
+        }
+
+        sections.Add(new ComputerMappingSection
+        {
+            ComputerId = id,
+            ComputerName = ComputerIdentity.CurrentName,
+            SavedAt = incoming.SavedAt ?? DateTime.Now.ToString("s"),
+            Mappings = [.. incoming.Mappings.Select(static m => m.Clone())],
+        });
+
+        return sections;
     }
 
     /// <summary>摘掉隐藏属性（不存在 / 失败时忽略）。</summary>

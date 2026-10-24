@@ -4,6 +4,7 @@ using Serva.App.Controls;
 using Serva.App.Localization;
 using Serva.App.Services;
 using Serva.App.ViewModels;
+using Serva.Core.Models;
 
 namespace Serva.App.Views;
 
@@ -43,6 +44,51 @@ public sealed partial class SettingsPage : Page
     private void OnUpdatesChanged(object? sender, EventArgs e) => ViewModel.RefreshUpdateState();
 
     /// <summary>关闭状态提示条：清掉视图模型里的句子，切换页面后不再出现。</summary>
+    /// <summary>防止连点同时弹出两个对话框（WinUI 只允许一个 ContentDialog）。</summary>
+    private bool _pickingPinnedFolder;
+
+    /// <summary>固定一个本机文件夹：选好后会作为快捷入口出现在「选择本机文件夹」对话框里。</summary>
+    private async void AddPinnedFolder_Click(object sender, RoutedEventArgs e)
+    {
+        // 防止连点同时弹出两个对话框（WinUI 只允许一个 ContentDialog）。
+        if (_pickingPinnedFolder)
+        {
+            return;
+        }
+
+        _pickingPinnedFolder = true;
+
+        try
+        {
+            // 固定文件夹时只列本机硬盘，也不重复列出已经固定过的文件夹。
+            var dialog = new FolderBrowserDialog(
+                FolderBrowserMode.LocalDrives,
+                showPinnedFolders: false,
+                driveFilter: DriveFilter.FixedDrives)
+            {
+                XamlRoot = XamlRoot,
+            };
+
+            if (await dialog.ShowAsync() == ContentDialogResult.Primary && dialog.SelectedPath is { } folder)
+            {
+                ViewModel.AddPinnedFolder(folder);
+            }
+        }
+        finally
+        {
+            _pickingPinnedFolder = false;
+        }
+    }
+
+    /// <summary>取消固定。</summary>
+    private void RemovePinnedFolder_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string folder })
+        {
+            ViewModel.RemovePinnedFolder(folder);
+        }
+    }
+
     private void Status_CloseClick(InfoBar sender, object args) => ViewModel.DismissStatus();
 
     /// <summary>
@@ -59,6 +105,7 @@ public sealed partial class SettingsPage : Page
         var dialog = new ContentDialog
         {
             XamlRoot = XamlRoot,
+            RequestedTheme = AppearanceService.CurrentElementTheme,
             Title = StatusPresentation.WarningTitle(AppText.Current.RecycleOffDialogTitle),
             Content = new TextBlock
             {

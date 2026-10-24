@@ -155,9 +155,16 @@ public sealed partial class LogViewModel
         string root = Path.GetPathRoot(header.TargetPath) ?? string.Empty;
         string letter = root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         string label = LabelOf(header, letter);
+        // 新日志存的是处理方式代码（按当前语言现算）；旧日志里是当时记下的文字，直接用。
         string mode = string.IsNullOrWhiteSpace(header.Message)
             ? AppText.Current.T("Merge", "合并")
-            : header.Message.Trim();
+            : RunHeaderCode.Normalize(header.Message) switch
+            {
+                RunHeaderCode.Merge => AppText.Current.T("Merge", "合并"),
+                RunHeaderCode.OverwriteLocalToDevice => AppText.Current.T("Overwrite", "覆盖"),
+                RunHeaderCode.OverwriteDeviceToLocal => AppText.Current.T("Overwrite local disk", "覆盖本机硬盘"),
+                _ => header.Message.Trim(),
+            };
         string stamp = header.TimestampUtc.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss");
 
         return string.Join(' ', new[] { mode, label, letter, stamp }.Where(static part => part.Length > 0));

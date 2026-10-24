@@ -79,6 +79,18 @@
                 </StackPanel>
             </Border>
         </DataTemplate>
+        <DataTemplate x:Key="PinnedFolderTemplate" x:DataType="x:String">
+            <Border Margin="0,0,0,8" Padding="10,6" Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="8">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                    <FontIcon VerticalAlignment="Center" FontSize="12" Glyph="&#xE840;" />
+                    <TextBlock Grid.Column="1" VerticalAlignment="Center" FontSize="12" Text="{x:Bind}" TextTrimming="CharacterEllipsis" />
+                    <Button Grid.Column="2" Padding="0" Background="Transparent" BorderThickness="0" Click="RemovePinnedFolder_Click" Tag="{x:Bind}">
+                        <FontIcon FontSize="12" Glyph="&#xE711;" />
+                    </Button>
+                </Grid>
+            </Border>
+        </DataTemplate>
+
     </Page.Resources>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -237,6 +249,28 @@
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <Button Command="{x:Bind ViewModel.RestoreDefaultRulesCommand}" Content="{x:Bind Text.RestoreDefaultRules, Mode=OneWay}" />
                     </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- ============================== 固定文件夹 ============================== -->
+            <Border Style="{StaticResource ServaCard}">
+                <StackPanel Spacing="10">
+                    <TextBlock Style="{StaticResource ServaSectionTitle}" Text="{x:Bind Text.PinnedFoldersSection, Mode=OneWay}" />
+                    <TextBlock
+                        FontSize="12"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="{x:Bind Text.PinnedFoldersHint, Mode=OneWay}"
+                        TextWrapping="Wrap" />
+                    <TextBlock
+                        FontSize="13"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="{x:Bind Text.NoPinnedFolders, Mode=OneWay}"
+                        Visibility="{x:Bind ViewModel.PinnedEmptyVisibility, Mode=OneWay}" />
+                    <ItemsControl ItemTemplate="{StaticResource PinnedFolderTemplate}" ItemsSource="{x:Bind ViewModel.PinnedFolders}" />
+                    <Button
+                        HorizontalAlignment="Left"
+                        Click="AddPinnedFolder_Click"
+                        Content="{x:Bind Text.AddPinnedFolder, Mode=OneWay}" />
                 </StackPanel>
             </Border>
 

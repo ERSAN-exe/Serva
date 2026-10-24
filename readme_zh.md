@@ -50,7 +50,7 @@ Serva 是一款轻量、高性能的桌面应用程序，专为 Windows 10 和 W
 
 [![提交代码](https://img.shields.io/badge/Pull%20Request-提交代码-green?style=for-the-badge&logo=github)](https://github.com/ERSAN-exe/Serva/pulls)
 
-[![功能建议](https://img.shields.io/badge/Feature%20Request-新功能建议-blue?style=for-the-badge&logo=lightbulb)](https://github.com/ERSAN-exe/Serva/issues/new)
+[![新功能建议](https://img.shields.io/badge/Feature%20Request-新功能建议-blue?style=for-the-badge&logo=lightbulb)](https://github.com/ERSAN-exe/Serva/discussions/new?category=ideas)
 
 <div align="center">
 

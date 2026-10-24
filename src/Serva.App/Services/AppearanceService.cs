@@ -38,6 +38,13 @@ public static class AppearanceService
         _ => AppText.Current.ThemeSystem,
     };
 
+    /// <summary>
+    /// 当前应使用的外观主题。对话框（<c>ContentDialog</c>）挂在弹出层，不会继承窗口根元素的
+    /// <see cref="FrameworkElement.RequestedTheme"/>，必须显式设置 —— 否则暗色模式下会弹出亮色对话框。
+    /// </summary>
+    public static ElementTheme CurrentElementTheme =>
+        ResolveElementTheme(SettingsService.Current.Value.Theme);
+
     /// <summary>在创建窗口之前应用默认主题，使 Mica 等系统材质从一开始就正确。</summary>
     public static void ApplyAtStartup(AppSettings settings)
     {
