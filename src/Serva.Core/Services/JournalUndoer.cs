@@ -103,6 +103,7 @@ public sealed partial class JournalUndoer
             entry.SourcePath,
             entry.TargetPath,
             entry.Bytes,
-            null);
+            null,
+            entry.CreatedDirectories);
     }
 }

@@ -32,6 +32,7 @@ public sealed partial class JournalUndoer
                     case UndoActionKind.DeleteCreatedFile:
                         if (!File.Exists(step.TargetPath))
                         {
+                            DeleteEmptyCreatedDirectories(step);
                             skipped++;
                             break;
                         }
@@ -54,6 +55,7 @@ public sealed partial class JournalUndoer
                         journal?.Append(
                             JournalOperationKind.Undo, step.RelativePath, step.TargetPath, string.Empty, step.Bytes, true,
                             CoreText.Get("Undo: delete files copied in this run", "撤销：删除本次复制的文件"));
+                        DeleteEmptyCreatedDirectories(step);
                         deleted++;
                         break;
 
@@ -126,6 +128,38 @@ public sealed partial class JournalUndoer
         };
     }
 
+    /// <summary>
+    /// 删除本次运行<strong>新建</strong>、且现在是空目录的文件夹（从最内层开始）。
+    /// <para>文件删掉之后，这些目录本来就不该由这次运行留在目标端。</para>
+    /// </summary>
+    private static void DeleteEmptyCreatedDirectories(UndoStep step)
+    {
+        IReadOnlyList<string>? directories = step.CreatedDirectories;
+        if (directories is null || directories.Count == 0)
+        {
+            return;
+        }
+
+        for (int index = directories.Count - 1; index >= 0; index--)
+        {
+            string directory = directories[index];
+
+            try
+            {
+                if (Directory.Exists(directory) && !Directory.EnumerateFileSystemEntries(directory).Any())
+                {
+                    Directory.Delete(directory);
+                }
+            }
+            catch (IOException)
+            {
+                // 目录非空 / 正被占用：保留。
+            }
+            catch (UnauthorizedAccessException)
+            {
+            }
+        }
+    }
     private static void EnsureParent(string path)
     {
         string? directory = Path.GetDirectoryName(path);

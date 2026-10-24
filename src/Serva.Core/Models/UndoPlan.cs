@@ -25,7 +25,8 @@ public sealed record UndoStep(
     string SourcePath,
     string TargetPath,
     long Bytes,
-    string? Note)
+    string? Note,
+    IReadOnlyList<string>? CreatedDirectories = null)
 {
     public bool IsExecutable => Action != UndoActionKind.NotPossible;
 

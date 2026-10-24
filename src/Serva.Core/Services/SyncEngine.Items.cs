@@ -49,6 +49,9 @@ public sealed partial class SyncEngine
                 // 在写入前记录目标端是否已有同名文件 —— 撤销时据此决定能否安全删除。
                 bool overwritten = File.Exists(target);
 
+                // 复制前先记下目标端缺少的目录：撤销时据此删掉「本次运行才出现」的空目录。
+                IReadOnlyList<string> createdDirectories = CollectMissingDirectories(target);
+
                 await CopyFileAsync(
                         source,
                         target,
@@ -58,7 +61,8 @@ public sealed partial class SyncEngine
                     .ConfigureAwait(false);
 
                 state.Journal.Append(
-                    JournalOperationKind.Copy, item.RelativePath, source, target, item.Size, true, null, overwritten);
+                    JournalOperationKind.Copy, item.RelativePath, source, target, item.Size, true, null, overwritten,
+                    createdDirectories: createdDirectories);
                 break;
             }
 
@@ -70,6 +74,9 @@ public sealed partial class SyncEngine
                 PreserveExistingTarget(state, item, target, state.LeftRoot);
                 bool overwritten = File.Exists(target);
 
+                // 复制前先记下目标端缺少的目录：撤销时据此删掉「本次运行才出现」的空目录。
+                IReadOnlyList<string> createdDirectories = CollectMissingDirectories(target);
+
                 await CopyFileAsync(
                         source,
                         target,
@@ -79,7 +86,8 @@ public sealed partial class SyncEngine
                     .ConfigureAwait(false);
 
                 state.Journal.Append(
-                    JournalOperationKind.Copy, item.RelativePath, source, target, item.Size, true, null, overwritten);
+                    JournalOperationKind.Copy, item.RelativePath, source, target, item.Size, true, null, overwritten,
+                    createdDirectories: createdDirectories);
                 break;
             }
 
@@ -107,6 +115,30 @@ public sealed partial class SyncEngine
         }
     }
 
+    /// <summary>
+    /// 列出 <paramref name="target"/> 所在目录链里<strong>当前还不存在</strong>的目录（从最外层到最内层）：
+    /// 复制时这些目录会被创建出来，撤销时连同空目录一起删掉。
+    /// </summary>
+    private static IReadOnlyList<string> CollectMissingDirectories(string target)
+    {
+        string? directory = Path.GetDirectoryName(target);
+        if (string.IsNullOrEmpty(directory) || Directory.Exists(directory))
+        {
+            return [];
+        }
+
+        var missing = new List<string>();
+
+        for (string? current = directory;
+             !string.IsNullOrEmpty(current) && !Directory.Exists(current);
+             current = Path.GetDirectoryName(current))
+        {
+            missing.Add(current);
+        }
+
+        missing.Reverse();   // 最外层在前，撤销时反着删。
+        return missing;
+    }
     /// <summary>「两者都保留」：写入前先把目标端已有文件改名，两个版本都不丢。</summary>
     private static void PreserveExistingTarget(RunState state, PlanItem item, string target, string targetRoot)
     {

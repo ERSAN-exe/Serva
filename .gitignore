@@ -12,6 +12,7 @@
 *.appxbundle
 *.nupkg
 *.snupkg
+*.iss
 
 /tools/
 /Backup/

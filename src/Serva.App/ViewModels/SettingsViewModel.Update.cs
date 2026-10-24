@@ -31,7 +31,7 @@ public sealed partial class SettingsViewModel
     public AsyncRelayCommand CheckUpdatesCommand { get; } =
         new(() => UpdateService.Current.CheckAsync(manual: true));
 
-    /// <summary>「当前版本 0.1.0」。</summary>
+    /// <summary>「当前版本 0.2.0」。</summary>
     public string CurrentVersionText =>
         AppText.Current.F("Current version {0}", "当前版本 {0}", AppVersion.Current);
 

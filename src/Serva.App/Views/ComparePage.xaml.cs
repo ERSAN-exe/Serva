@@ -41,6 +41,12 @@ public sealed partial class ComparePage : Page
     /// <summary>关闭「发现新版本」提示条：记住这个版本，之后不再重复提醒。</summary>
     private void UpdateNotice_CloseClick(InfoBar sender, object args) => ViewModel.DismissUpdateNotice();
 
+    /// <summary>关闭提示条：清掉视图模型里的句子，切换页面后不再出现。</summary>
+    private void Banner_CloseClick(InfoBar sender, object args) => ViewModel.DismissBanner();
+
+    /// <summary>关闭日志卡片的提示：同上。</summary>
+    private void LogStatus_CloseClick(InfoBar sender, object args) => Log.DismissStatus();
+
     private void OnUnloaded(object sender, RoutedEventArgs e) => Log.RowsReloaded -= OnLogRowsReloaded;
 
     /// <summary>日志刷新后跳到最新一条（行按时间顺序排列，最后一条即最新）。</summary>

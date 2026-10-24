@@ -152,7 +152,8 @@ public sealed partial class CompareViewModel : ObservableObject, IDisposable
     {
         ScanSummary = _scanSummaryFactory();
 
-        if (_bannerFactory is not null)
+        // 只有「当前仍然显示着」的提示条才需要换语言；关掉过的不要借机复活。
+        if (_bannerFactory is not null && BannerMessage is not null)
         {
             BannerMessage = _bannerFactory();
         }

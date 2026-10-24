@@ -30,6 +30,43 @@ public class JournalUndoerExecuteTests
     }
 
     [Fact]
+    public void Execute_DeletesDirectoriesCreatedByTheRun()
+    {
+        using var target = new TestTree("undo-created-dirs");
+        string file = target.Add("new/nested/a.txt", "HELLO");
+        string inner = target.PathOf("new/nested");
+        string outer = target.PathOf("new");
+
+        UndoResult result = JournalUndoer.Execute(JournalUndoer.BuildPlan([
+            Entry(JournalOperationKind.Copy, "new/nested/a.txt", "src", file, bytes: 5, overwritten: false)
+                with { CreatedDirectories = [outer, inner] },
+        ]));
+
+        Assert.Equal(1, result.Deleted);
+        Assert.False(File.Exists(file));
+        Assert.False(Directory.Exists(inner));   // 本次运行新建的空目录一并删除
+        Assert.False(Directory.Exists(outer));
+        Assert.True(Directory.Exists(target.Root));
+    }
+
+    [Fact]
+    public void Execute_KeepsCreatedDirectoryThatStillHasOtherFiles()
+    {
+        using var target = new TestTree("undo-created-dirs-kept");
+        string file = target.Add("shared/a.txt", "HELLO");
+        target.Add("shared/keep.txt", "OTHER");
+        string directory = target.PathOf("shared");
+
+        JournalUndoer.Execute(JournalUndoer.BuildPlan([
+            Entry(JournalOperationKind.Copy, "shared/a.txt", "src", file, bytes: 5, overwritten: false)
+                with { CreatedDirectories = [directory] },
+        ]));
+
+        Assert.False(File.Exists(file));
+        Assert.True(Directory.Exists(directory));   // 目录里还有别的文件 → 保留
+        Assert.True(File.Exists(target.PathOf("shared/keep.txt")));
+    }
+    [Fact]
     public void Execute_SkipsFileModifiedAfterTheRun()
     {
         using var target = new TestTree("undo-modified");

@@ -31,7 +31,6 @@ public sealed class UpdateService : INotifyPropertyChanged
     private UpdateService()
     {
         _checker = new UpdateChecker();
-        AppText.Current.PropertyChanged += OnLanguageChanged;
     }
 
     /// <summary>全局唯一实例（与 <see cref="SettingsService"/> 同样的单例模式）。</summary>
@@ -119,6 +118,10 @@ public sealed class UpdateService : INotifyPropertyChanged
                 UpdateCheckStatus.Failed => text.T(
                     "Could not check for updates. Try again later.",
                     "检查更新失败，请稍后重试。"),
+                UpdateCheckStatus.UpdateAvailable when !string.IsNullOrEmpty(LatestVersion) => text.F(
+                    "{0} is available but was dismissed.",
+                    "已忽略新版本 {0}。",
+                    LatestVersion),
                 _ => string.Empty,
             };
         }
@@ -190,15 +193,8 @@ public sealed class UpdateService : INotifyPropertyChanged
         RaiseStatusChanged();
     }
 
-    /// <summary>语言切换：状态文字需要重新生成（界面上的绑定靠自己刷新）。</summary>
-    private void OnLanguageChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        // 切换语言时所有属性都会各通知一次；只在「更新」这一条上响应，避免重复刷新。
-        if (e.PropertyName == nameof(AppText.UpdateSection))
-        {
-            RaiseStatusChanged();
-        }
-    }
+    /// <summary>语言切换后：状态文字按新语言重新生成，并通知界面刷新。</summary>
+    public void RefreshTexts() => RaiseStatusChanged();
 
     private void RaiseStatusChanged()
     {

@@ -41,10 +41,11 @@ public sealed partial class CompareViewModel
                 return;
             }
 
-            // 设备被拔出 / 未检测到：只在内存里保留对应关系（不写回设置文件，避免把手写配置弄丢），
-            // 重新插回同一台设备后还能继续用。
+            // 设备被拔出 / 未检测到：对应关系属于设备，界面上一并清空；
+            // 配置仍留在设备根目录的 .serva-mappings.json 与本机设置里，重新接入同一台设备会自动恢复。
             if (value is null)
             {
+                ClearMappingsInMemory();
                 ResetResults(() => Text.T("Select a removable device.", "请选择一个移动设备。"));
                 return;
             }

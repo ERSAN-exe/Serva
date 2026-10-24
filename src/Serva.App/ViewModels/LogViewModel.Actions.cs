@@ -11,6 +11,9 @@ public sealed partial class LogViewModel
     /// <summary>重新读取日志：旧日志直接删除，只保留最新一次运行。</summary>
     public void Reload()
     {
+        // 日志内容重新加载后，上一条「已清除 / 已撤销」之类的提示就不作数了。
+        DismissStatus();
+
         string? previous = _selectedJournal?.FilePath;
 
         Journal.DeleteOldJournals();
@@ -84,6 +87,9 @@ public sealed partial class LogViewModel
                 return (built, JournalUndoer.Execute(built, new Journal()));
             });
 
+            // 先刷新日志内容（这一步会清掉旧提示），再显示本次撤销的结果。
+            Reload();
+
             if (!plan.CanUndo)
             {
                 string blocked = plan.Summary;
@@ -111,8 +117,6 @@ public sealed partial class LogViewModel
             App.GetCompareViewModel().InvalidateResults(() => AppText.Current.T(
                 "Undo executed. Click \"Scan and compare\" again.",
                 "已执行撤销，请重新点击「扫描并比较」。"));
-
-            Reload();
         }
         finally
         {

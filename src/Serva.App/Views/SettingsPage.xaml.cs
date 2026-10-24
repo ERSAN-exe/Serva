@@ -42,6 +42,9 @@ public sealed partial class SettingsPage : Page
 
     private void OnUpdatesChanged(object? sender, EventArgs e) => ViewModel.RefreshUpdateState();
 
+    /// <summary>关闭状态提示条：清掉视图模型里的句子，切换页面后不再出现。</summary>
+    private void Status_CloseClick(InfoBar sender, object args) => ViewModel.DismissStatus();
+
     /// <summary>
     /// 关闭「删除时移入回收文件夹」意味着删除不可找回，先警告一次；
     /// 用户选择取消时把开关拨回去。

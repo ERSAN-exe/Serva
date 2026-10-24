@@ -32,7 +32,12 @@ public partial class App : Application
     /// 语言切换后的收尾：界面文案靠 <c>x:Bind</c> 自动刷新，
     /// 但「已经算好的句子」（计划说明、扫描摘要、日志行）需要重新生成。
     /// </summary>
-    internal static void OnLanguageChanged() => _compareViewModel?.OnLanguageChanged();
+    internal static void OnLanguageChanged()
+    {
+        // 版本更新提示的文字由 UpdateService 生成：先让它重新生成（会通知比较页 / 设置页）。
+        UpdateService.Current.RefreshTexts();
+        _compareViewModel?.OnLanguageChanged();
+    }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {

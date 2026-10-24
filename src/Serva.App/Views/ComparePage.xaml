@@ -63,6 +63,7 @@
                 IsClosable="True"
                 IsOpen="{x:Bind ViewModel.HasBanner, Mode=OneWay}"
                 Message="{x:Bind ViewModel.BannerMessage, Mode=OneWay}"
+                CloseButtonClick="Banner_CloseClick"
                 Severity="{x:Bind ViewModel.BannerSeverity, Mode=OneWay}" />
 
             <!-- 版本更新提示：「查看更新」打开 GitHub 上最新的 Release 页面 -->
@@ -292,6 +293,7 @@
                             IsClosable="True"
                             IsOpen="{x:Bind Log.HasStatus, Mode=OneWay}"
                             Message="{x:Bind Log.StatusMessage, Mode=OneWay}"
+                            CloseButtonClick="LogStatus_CloseClick"
                             Severity="{x:Bind Log.StatusSeverity, Mode=OneWay}" />
 
                         <Border

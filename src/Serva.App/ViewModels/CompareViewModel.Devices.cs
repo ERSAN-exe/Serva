@@ -16,6 +16,9 @@ public sealed partial class CompareViewModel
     private string? _deviceSignature;
     private bool _isRefreshingDevices;
 
+    /// <summary>本次刷新是否由用户主动「重新扫描」触发：是的话对应关系以设备上的文件为准。</summary>
+    private bool _reloadMappingsFromDevice;
+
     /// <summary>挂接窗口：注册 WM_DEVICECHANGE 并启动 3 秒兜底轮询。</summary>
     public void AttachWindow(Window window)
     {
@@ -58,7 +61,25 @@ public sealed partial class CompareViewModel
     private void RefreshDevices()
     {
         _deviceSignature = null;
-        ApplyDevices(ResolveVisibleDevices());
+
+        // 用户主动「重新扫描」：对应关系属于设备，先清空界面上的旧列表，再按设备上的文件重新读取；
+        // 上一次的比较结果也一并作废（设备可能已经换过 / 内容已被改过）。
+        if (_selectedDevice is not null)
+        {
+            ClearMappingsInMemory();
+            ResetResults(MappingsUpdatedPrompt);
+            _reloadMappingsFromDevice = true;
+        }
+
+        try
+        {
+            ApplyDevices(ResolveVisibleDevices());
+        }
+        finally
+        {
+            _reloadMappingsFromDevice = false;
+        }
+
         _deviceWatcher?.CheckNow();
         UpdateDerivedSummaries();
     }
@@ -120,7 +141,11 @@ public sealed partial class CompareViewModel
         // 设备自己根目录里的 .serva-mappings.json 则由 SelectedDevice 的 setter 负责读取。
         if (_selectedDevice is { } current)
         {
-            RestoreMappings(current, lastKnownIdentity, lastKnownRoot);
+            // 「重新扫描」时以设备上的文件为准，不沿用本机设置里的兜底记录。
+            RestoreMappings(
+                current,
+                _reloadMappingsFromDevice ? null : lastKnownIdentity,
+                _reloadMappingsFromDevice ? null : lastKnownRoot);
         }
 
         UpdateDeviceBanner(devices);

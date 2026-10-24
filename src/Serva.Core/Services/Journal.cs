@@ -49,6 +49,12 @@ public sealed record JournalEntry(
     /// </summary>
     public string? DeviceLabel { get; init; }
 
+    /// <summary>
+    /// 这次复制为此文件<strong>新建</strong>的目录（绝对路径，从最外层到最内层）。
+    /// 撤销时用来删掉「本次运行才出现」的空目录；旧日志没有这一项（<c>null</c>）。
+    /// </summary>
+    public IReadOnlyList<string>? CreatedDirectories { get; init; }
+
     public string KindText => Kind switch
     {
         JournalOperationKind.Copy => CoreText.Get("Copy", "复制"),
@@ -172,11 +178,13 @@ public sealed class Journal
         bool success,
         string? message = null,
         bool? overwritten = null,
-        string? deviceLabel = null) =>
+        string? deviceLabel = null,
+        IReadOnlyList<string>? createdDirectories = null) =>
         Append(new JournalEntry(DateTime.UtcNow, kind, relativePath, sourcePath, targetPath, bytes, success, message)
         {
             Overwritten = overwritten,
             DeviceLabel = deviceLabel,
+            CreatedDirectories = createdDirectories,
         });
 
     /// <summary>读取日志文件概要（次数 / 失败数 / 可撤销数）。</summary>

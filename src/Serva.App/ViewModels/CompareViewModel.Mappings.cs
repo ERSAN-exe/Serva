@@ -116,6 +116,22 @@ public sealed partial class CompareViewModel
     /// 接入设备时恢复对应关系：优先读设备根目录里的文件（对应关系跟着设备走），
     /// 其次沿用本机设置里「上次使用的那台设备」的记录。
     /// </summary>
+    /// <summary>
+    /// 清空界面上的对应关系（<strong>不</strong>写回设置与设备文件）：
+    /// 设备被拔出、或用户点了「重新扫描」时用 —— 配置本身仍保留在设备文件与本机设置里。
+    /// </summary>
+    private void ClearMappingsInMemory()
+    {
+        if (Mappings.Count == 0)
+        {
+            return;
+        }
+
+        Mappings.Clear();
+        OnPropertyChanged(nameof(MappingSummary));
+        OnPropertyChanged(nameof(CanAddMapping));
+        OnPropertyChanged(nameof(CanScan));
+    }
     private void RestoreMappings(DeviceInfo device, string? knownIdentity, string? knownRoot)
     {
         if (Mappings.Count > 0)
@@ -193,7 +209,21 @@ public sealed partial class CompareViewModel
         BannerMessage = message();
     }
 
-    private void ClearBanner() => BannerMessage = null;
+    /// <summary>
+    /// 清掉提示条：连「句子生成器」一起清空。
+    /// <para>
+    /// 只清 <see cref="BannerMessage"/> 是不够的：切换语言时会用生成器重新生成句子，
+    /// 已经关掉 / 已经消失的提示条就会又冒出来。
+    /// </para>
+    /// </summary>
+    private void ClearBanner()
+    {
+        _bannerFactory = null;
+        BannerMessage = null;
+    }
+
+    /// <summary>页面上的「×」：关闭提示条，切换页面 / 切换语言后都不再出现。</summary>
+    public void DismissBanner() => ClearBanner();
 
     private void UpdateDerivedSummaries()
     {

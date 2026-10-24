@@ -94,6 +94,7 @@
                 IsClosable="True"
                 IsOpen="{x:Bind ViewModel.HasStatus, Mode=OneWay}"
                 Message="{x:Bind ViewModel.StatusMessage, Mode=OneWay}"
+                CloseButtonClick="Status_CloseClick"
                 Severity="{x:Bind ViewModel.StatusSeverity, Mode=OneWay}" />
 
             <!-- ============================== 外观 ============================== -->

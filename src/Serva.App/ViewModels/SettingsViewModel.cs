@@ -124,10 +124,18 @@ public sealed partial class SettingsViewModel : ObservableObject
         StatusMessage = message();
     }
 
+    /// <summary>页面上的「×」：关掉状态提示，切换页面 / 切换语言后都不再出现。</summary>
+    public void DismissStatus()
+    {
+        _statusFactory = null;
+        StatusMessage = null;
+    }
+
     /// <summary>语言切换后：本页里「已经算好」的文案重新生成。</summary>
     private void RefreshLocalizedTexts()
     {
-        if (_statusFactory is not null)
+        // 只有仍然显示着的状态提示才需要换语言（关掉过的不再复活）。
+        if (_statusFactory is not null && StatusMessage is not null)
         {
             StatusMessage = _statusFactory();
         }
