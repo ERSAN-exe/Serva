@@ -35,8 +35,17 @@ public sealed class AppSettings
     /// <summary>启动时是否检查 GitHub 上的新版本（默认开启）。</summary>
     public bool CheckUpdatesOnStartup { get; set; } = true;
 
-    /// <summary>上次检查更新的时间（UTC），用于 24 小时节流。</summary>
+    /// <summary>上次检查更新的时间（UTC），用于几分钟内的重复启动去重。</summary>
     public DateTimeOffset? LastUpdateCheckUtc { get; set; }
+
+    /// <summary>
+    /// 上次检查时远程发布的最新版本号。
+    /// <para>
+    /// 启动时先用它在本地恢复「发现新版本」的状态，打开软件就能看到提示条 / 导航小红点，
+    /// 不必等这一轮联网检查（断网时也能提示上次查到的结果）。
+    /// </para>
+    /// </summary>
+    public string? LatestKnownVersion { get; set; }
 
     /// <summary>用户已经忽略过的新版本号，避免每次启动重复提醒。</summary>
     public string? DismissedUpdateVersion { get; set; }
@@ -57,6 +66,7 @@ public sealed class AppSettings
         LastTargetIdentity = LastTargetIdentity,
         CheckUpdatesOnStartup = CheckUpdatesOnStartup,
         LastUpdateCheckUtc = LastUpdateCheckUtc,
+        LatestKnownVersion = LatestKnownVersion,
         DismissedUpdateVersion = DismissedUpdateVersion,
         PinnedFolders = [.. PinnedFolders],
     };

@@ -60,7 +60,7 @@
         <Grid
             Grid.Row="0"
             MaxWidth="1280"
-            HorizontalAlignment="Left"
+            HorizontalAlignment="Stretch"
             Padding="{StaticResource ServaPagePadding}"
             RowSpacing="16">
             <Grid.RowDefinitions>

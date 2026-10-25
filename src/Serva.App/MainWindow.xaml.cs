@@ -26,6 +26,7 @@ public sealed partial class MainWindow : Window
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
         SetWindowIcon();
+        ApplyMinWindowSize();
 
         // Fluent 材质：Mica（Windows 11）。不支持时自动退化为纯色背景。
         if (MicaController.IsSupported())
@@ -77,6 +78,77 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    // ============================ 最小窗口尺寸 ============================
+
+    private const int WmGetMinMaxInfo = 0x0024;
+    private const int GwlWndProc = -4;
+
+    /// <summary>最小内容尺寸（逻辑像素）：再小设备卡片与结果表格就挤成一团了。</summary>
+    private const int MinWidthDip = 900;
+
+    private const int MinHeightDip = 600;
+
+    private delegate nint WindowProc(nint hwnd, uint message, nint wParam, nint lParam);
+
+    /// <summary>必须保留委托引用，否则被 GC 回收后窗口消息会崩。</summary>
+    private WindowProc? _windowProc;
+
+    private nint _previousWindowProc;
+
+    /// <summary>
+    /// 限制窗口最小尺寸：WinUI 3 没有现成的 MinWidth/MinHeight，
+    /// 这里接管窗口过程并处理 <c>WM_GETMINMAXINFO</c>，按当前 DPI 换算成物理像素。
+    /// </summary>
+    private void ApplyMinWindowSize()
+    {
+        nint handle = WinRT.Interop.WindowNative.GetWindowHandle(this);
+
+        _windowProc = OnWindowMessage;
+        _previousWindowProc = SetWindowLongPtr(
+            handle, GwlWndProc, System.Runtime.InteropServices.Marshal.GetFunctionPointerForDelegate(_windowProc));
+    }
+
+    private nint OnWindowMessage(nint hwnd, uint message, nint wParam, nint lParam)
+    {
+        if (message == WmGetMinMaxInfo)
+        {
+            double scale = GetDpiForWindow(hwnd) / 96.0;
+            if (scale <= 0)
+            {
+                scale = 1.0;
+            }
+
+            MinMaxInfo info = System.Runtime.InteropServices.Marshal.PtrToStructure<MinMaxInfo>(lParam);
+            info.MinTrackSize.X = (int)Math.Round(MinWidthDip * scale);
+            info.MinTrackSize.Y = (int)Math.Round(MinHeightDip * scale);
+            System.Runtime.InteropServices.Marshal.StructureToPtr(info, lParam, false);
+        }
+
+        return CallWindowProc(_previousWindowProc, hwnd, message, wParam, lParam);
+    }
+
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    private struct Point
+    {
+        public int X;
+        public int Y;
+    }
+
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    private struct MinMaxInfo
+    {
+        public Point Reserved;
+        public Point MaxSize;
+        public Point MaxPosition;
+        public Point MinTrackSize;
+        public Point MaxTrackSize;
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW", SetLastError = true)]
+    private static extern nint SetWindowLongPtr(nint hwnd, int index, nint newValue);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll", EntryPoint = "CallWindowProcW")]
+    private static extern nint CallWindowProc(nint previous, nint hwnd, uint message, nint wParam, nint lParam);
     /// <summary>把当前语言的导航文案写进 NavigationView。</summary>
     private void ApplyNavText()
     {

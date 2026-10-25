@@ -125,7 +125,25 @@ public sealed partial class FolderBrowserDialog : ContentDialog
 
     private void LoadDrives()
     {
-        // 设置里「固定」的本机文件夹：作为快捷入口排在最前面。
+        // 盘符根排在最前面：选本机文件夹时绝大多数情况是从某个硬盘开始往下点。
+        foreach (DeviceInfo drive in VolumeInfo.GetDrives(_driveFilter))
+        {
+            if (_excludedDrives.Contains(NormalizeDrive(drive.RootPath), StringComparer.Ordinal))
+            {
+                continue;
+            }
+
+            _entries.Add(new FolderEntry(drive.RootPath, drive.DisplayName, true));
+        }
+
+        // 桌面：紧跟盘符列表，点进去后可用「使用当前文件夹」直接选桌面。
+        string desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+        if (!string.IsNullOrEmpty(desktop) && Directory.Exists(desktop))
+        {
+            _entries.Add(new FolderEntry(desktop, AppText.Current.DesktopFolder, false, IsDesktop: true));
+        }
+
+        // 设置里「固定」的本机文件夹：作为快捷入口排在最后，不挡在盘符前面。
         foreach (string folder in _showPinnedFolders ? SettingsService.Current.Value.PinnedFolders : [])
         {
             if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
@@ -139,23 +157,6 @@ public sealed partial class FolderBrowserDialog : ContentDialog
             }
 
             _entries.Add(new FolderEntry(folder, PinnedName(folder), false, IsPinned: true));
-        }
-
-        foreach (DeviceInfo drive in VolumeInfo.GetDrives(_driveFilter))
-        {
-            if (_excludedDrives.Contains(NormalizeDrive(drive.RootPath), StringComparer.Ordinal))
-            {
-                continue;
-            }
-
-            _entries.Add(new FolderEntry(drive.RootPath, drive.DisplayName, true));
-        }
-
-        // 桌面：排在盘符列表下方，点进去后可用「使用当前文件夹」直接选桌面。
-        string desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-        if (!string.IsNullOrEmpty(desktop) && Directory.Exists(desktop))
-        {
-            _entries.Add(new FolderEntry(desktop, AppText.Current.DesktopFolder, false, IsDesktop: true));
         }
 
         RootText.Text = AppText.Current.LocalDrivesCaption;

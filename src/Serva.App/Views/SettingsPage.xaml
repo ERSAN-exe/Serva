@@ -93,7 +93,7 @@
 
     </Page.Resources>
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled">
         <StackPanel
             MaxWidth="1000"
             Padding="{StaticResource ServaPagePadding}"

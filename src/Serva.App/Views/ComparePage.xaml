@@ -48,7 +48,7 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
+        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled">
             <StackPanel
                 MaxWidth="1280"
                 Padding="{StaticResource ServaPagePadding}"
@@ -84,19 +84,33 @@
                 <Grid ColumnDefinitions="*,1.6*" ColumnSpacing="16">
                     <Border Grid.Column="1" Style="{StaticResource ServaCard}">
                         <StackPanel Spacing="10">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <FontIcon FontSize="16" Glyph="&#xE8B7;" />
-                                <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="{x:Bind Text.MappingsTitle, Mode=OneWay}" />
+                            <!-- 同上：标题 + 摘要占 * 列，「添加对应关系」按钮固定在最右列，不会被挤出卡片 -->
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon VerticalAlignment="Center" FontSize="16" Glyph="&#xE8B7;" />
                                 <TextBlock
+                                    Grid.Column="1"
+                                    VerticalAlignment="Center"
+                                    Style="{StaticResource BodyStrongTextBlockStyle}"
+                                    Text="{x:Bind Text.MappingsTitle, Mode=OneWay}" />
+                                <TextBlock
+                                    Grid.Column="2"
                                     VerticalAlignment="Center"
                                     FontSize="12"
                                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                    Text="{x:Bind ViewModel.MappingSummary, Mode=OneWay}" />
+                                    Text="{x:Bind ViewModel.MappingSummary, Mode=OneWay}"
+                                    TextTrimming="CharacterEllipsis" />
                                 <Button
+                                    Grid.Column="3"
                                     Click="AddMapping_Click"
                                     Content="{x:Bind Text.AddMapping, Mode=OneWay}"
                                     IsEnabled="{x:Bind ViewModel.CanAddMapping, Mode=OneWay}" />
-                            </StackPanel>
+                            </Grid>
 
                             <ListView
                                 MaxHeight="200"
@@ -151,11 +165,25 @@
 
                     <Border Style="{StaticResource ServaCard}">
                         <StackPanel Spacing="10">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <FontIcon FontSize="16" Glyph="&#xE88E;" />
-                                <TextBlock VerticalAlignment="Center" Style="{StaticResource BodyStrongTextBlockStyle}" Text="{x:Bind Text.DevicesTitle, Mode=OneWay}" />
-                                <Button Command="{x:Bind ViewModel.RefreshDevicesCommand}" Content="{x:Bind Text.Rescan, Mode=OneWay}" />
-                            </StackPanel>
+                            <!-- 标题占 * 列并允许省略：卡片再窄也别把「重新扫描」按钮挤出去 -->
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon VerticalAlignment="Center" FontSize="16" Glyph="&#xE88E;" />
+                                <TextBlock
+                                    Grid.Column="1"
+                                    VerticalAlignment="Center"
+                                    Style="{StaticResource BodyStrongTextBlockStyle}"
+                                    Text="{x:Bind Text.DevicesTitle, Mode=OneWay}"
+                                    TextTrimming="CharacterEllipsis" />
+                                <Button
+                                    Grid.Column="2"
+                                    Command="{x:Bind ViewModel.RefreshDevicesCommand}"
+                                    Content="{x:Bind Text.Rescan, Mode=OneWay}" />
+                            </Grid>
 
                             <ListView
                                 MaxHeight="200"
@@ -255,7 +283,13 @@
                     <StackPanel Spacing="12">
                         <TextBlock Style="{StaticResource ServaSectionTitle}" Text="{x:Bind Text.LogTitle, Mode=OneWay}" />
 
-                        <Grid ColumnDefinitions="*,*,Auto" ColumnSpacing="12">
+                        <!-- 搜索框保底 200：窗口窄下去时先压缩左边的「上次同步」说明，不会把搜索框和按钮挤没 -->
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" MinWidth="200" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
                             <TextBlock
                                 VerticalAlignment="Center"
                                 FontSize="13"
