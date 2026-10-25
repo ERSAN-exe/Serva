@@ -29,6 +29,14 @@ public sealed partial class CompareViewModel
         string local = localRoot.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         string folder = MappingViewModel.Normalize(deviceFolder);
 
+        // 界面上一条都没有、但设备里存着配置（典型情况：刚点过「重新扫描」把列表清空了）：
+        // 先把设备上的配置读回界面再追加，否则这次保存会把旧配置覆盖成「只剩新加的这一条」。
+        if (Mappings.Count == 0)
+        {
+            _suppressMappingRestore = false;
+            RestoreMappings(device, device.Identity, device.RootPath);
+        }
+
         if (Mappings.Any(m => string.Equals(m.LocalRoot, local, StringComparison.OrdinalIgnoreCase)))
         {
             SetBanner(
@@ -113,10 +121,6 @@ public sealed partial class CompareViewModel
     }
 
     /// <summary>
-    /// 接入设备时恢复对应关系：优先读设备根目录里的文件（对应关系跟着设备走），
-    /// 其次沿用本机设置里「上次使用的那台设备」的记录。
-    /// </summary>
-    /// <summary>
     /// 清空界面上的对应关系（<strong>不</strong>写回设置与设备文件）：
     /// 设备被拔出、或用户点了「重新扫描」时用 —— 配置本身仍保留在设备文件与本机设置里。
     /// </summary>
@@ -129,9 +133,30 @@ public sealed partial class CompareViewModel
 
         Mappings.Clear();
         OnPropertyChanged(nameof(MappingSummary));
-        OnPropertyChanged(nameof(CanAddMapping));
+        RaiseMappingPanelState();
         OnPropertyChanged(nameof(CanScan));
     }
+
+    /// <summary>
+    /// 右侧「对应关系」面板的状态一起通知：是否可用、显示列表还是显示「选择一个可移动设备」。
+    /// <para>
+    /// 这几项都取决于「有没有选中设备」与「是否正在忙」，只通知 <see cref="CanAddMapping"/>
+    /// 会让列表可见性 / 整块禁用停在旧状态。
+    /// </para>
+    /// </summary>
+    private void RaiseMappingPanelState()
+    {
+        OnPropertyChanged(nameof(CanAddMapping));
+        OnPropertyChanged(nameof(IsDeviceSelected));
+        OnPropertyChanged(nameof(MappingListVisibility));
+        OnPropertyChanged(nameof(DeviceHintVisibility));
+        OnPropertyChanged(nameof(IsMappingPanelEnabled));
+    }
+
+    /// <summary>
+    /// 接入设备时恢复对应关系：优先读设备根目录里的文件（对应关系跟着设备走），
+    /// 其次沿用本机设置里「上次使用的那台设备」的记录。
+    /// </summary>
     private void RestoreMappings(DeviceInfo device, string? knownIdentity, string? knownRoot)
     {
 
@@ -242,7 +267,7 @@ public sealed partial class CompareViewModel
         OnPropertyChanged(nameof(ConflictCount));
         OnPropertyChanged(nameof(CanStart));
         OnPropertyChanged(nameof(CanScan));
-        OnPropertyChanged(nameof(CanAddMapping));
+        RaiseMappingPanelState();
         OnPropertyChanged(nameof(HasResults));
         OnPropertyChanged(nameof(MappingSummary));
         OnPropertyChanged(nameof(LocalDriveText));

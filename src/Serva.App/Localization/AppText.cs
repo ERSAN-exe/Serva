@@ -75,6 +75,9 @@ public sealed class AppText : INotifyPropertyChanged
 
     public string RemoveMappingTooltip => T("Remove this mapping", "移除这条对应关系");
 
+    /// <summary>没有选中设备时，右侧「对应关系」里的提示。</summary>
+    public string MappingNeedsDevice => T("Select a removable device", "选择一个可移动设备");
+
     public string DevicesTitle => T("Removable devices", "移动设备");
 
     public string Rescan => T("Rescan", "重新扫描");

@@ -35,7 +35,7 @@ public sealed partial class CompareViewModel
             {
                 OnPropertyChanged(nameof(CanScan));
                 OnPropertyChanged(nameof(CanStart));
-                OnPropertyChanged(nameof(CanAddMapping));
+                RaiseMappingPanelState();
                 RaiseCommands();
             }
         }
@@ -53,7 +53,7 @@ public sealed partial class CompareViewModel
 
                 OnPropertyChanged(nameof(CanScan));
                 OnPropertyChanged(nameof(CanStart));
-                OnPropertyChanged(nameof(CanAddMapping));
+                RaiseMappingPanelState();
                 OnPropertyChanged(nameof(RunningVisibility));
                 OnPropertyChanged(nameof(IdleVisibility));
                 RaiseCommands();

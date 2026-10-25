@@ -139,13 +139,24 @@ public static class AppearanceService
     {
         ElementTheme theme = ResolveElementTheme(settings.Theme);
 
-        if (window.Content is FrameworkElement root)
+        try
         {
-            root.RequestedTheme = theme;
-        }
+            if (window.Content is FrameworkElement root)
+            {
+                root.RequestedTheme = theme;
+            }
 
-        ApplyTitleBar(window, theme);
-        WatchSystemTheme(window);
+            ApplyTitleBar(window, theme);
+            WatchSystemTheme(window);
+        }
+        catch (InvalidOperationException)
+        {
+            // 窗口已经关闭（退出过程中仍可能收到 Activated / 系统颜色变化）：直接忽略。
+        }
+        catch (System.Runtime.InteropServices.COMException)
+        {
+            // 同上：WinUI 在窗口释放后再访问 Content / AppWindow 会抛 COMException。
+        }
     }
 
     /// <summary>

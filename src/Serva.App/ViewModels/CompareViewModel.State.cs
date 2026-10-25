@@ -30,7 +30,7 @@ public sealed partial class CompareViewModel
             }
 
             OnPropertyChanged(nameof(MappingSummary));
-            OnPropertyChanged(nameof(CanAddMapping));
+            RaiseMappingPanelState();
             OnPropertyChanged(nameof(CanScan));
             OnPropertyChanged(nameof(DeviceCard));
 
@@ -82,6 +82,24 @@ public sealed partial class CompareViewModel
 
     /// <summary>是否可以添加对应关系（需要先选中设备）。</summary>
     public bool CanAddMapping => _selectedDevice is not null && !IsBusy && !IsRunning;
+
+    /// <summary>
+    /// 是否已经选中了一台设备。
+    /// <para>
+    /// 没选中时右侧「对应关系」整块锁死（列表与按钮都不可操作），只显示「选择一个可移动设备」：
+    /// 对应关系属于设备，没有目标设备时任何改动都没有可写回的地方，还容易把旧配置覆盖掉。
+    /// </para>
+    /// </summary>
+    public bool IsDeviceSelected => _selectedDevice is not null;
+
+    /// <summary>「对应关系」列表的可见性：只在选中设备后显示。</summary>
+    public Visibility MappingListVisibility => IsDeviceSelected ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>「选择一个可移动设备」提示的可见性：没选中设备时显示。</summary>
+    public Visibility DeviceHintVisibility => IsDeviceSelected ? Visibility.Collapsed : Visibility.Visible;
+
+    /// <summary>「对应关系」整块是否可用：没有设备时连同移除按钮一起禁用。</summary>
+    public bool IsMappingPanelEnabled => IsDeviceSelected && !IsBusy && !IsRunning;
 
     /// <summary>「已添加 2 条对应关系」。</summary>
     public string MappingSummary => Mappings.Count == 0

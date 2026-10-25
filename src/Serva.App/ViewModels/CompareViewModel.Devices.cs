@@ -68,10 +68,15 @@ public sealed partial class CompareViewModel
 
         if (userInitiated)
         {
-            // 对应关系属于设备：重新扫描时界面清空，且不再自动恢复（配置仍在设备文件与本机设置里）。
-            ClearMappingsInMemory();
-            ResetResults(MappingsUpdatedPrompt);
+            // 对应关系属于设备：重新扫描时界面清空，并解除设备选中 ——
+            // 右侧「对应关系」随之锁定、只提示「选择一个可移动设备」，
+            // 必须由用户重新点选设备才会读回它自己的配置（避免在空白列表上改配置、把旧配置覆盖掉）。
             _suppressMappingRestore = true;
+            ClearMappingsInMemory();
+            SelectedDevice = null;
+            ResetResults(() => Text.T(
+                "Device list refreshed. Select a removable device.",
+                "设备列表已刷新，请选择一个可移动设备。"));
         }
 
         ApplyDevices(ResolveVisibleDevices());
@@ -131,13 +136,18 @@ public sealed partial class CompareViewModel
             _isRefreshingDevices = false;
         }
 
-        SelectedDevice = FindDevice(devices, previousIdentity, previousRoot);
-
-        // 只有重新接入「上次使用的那台设备」（身份一致）时才沿用本机设置里的对应关系；
-        // 设备自己根目录里的 .serva-mappings.json 则由 SelectedDevice 的 setter 负责读取。
-        if (_selectedDevice is { } current)
+        // 用户点过「重新扫描」：列表已清空，此时不再自动选中设备 ——
+        // 右侧保持锁定并提示「选择一个可移动设备」，等用户自己点选（点选时才读回那台设备的配置）。
+        if (!_suppressMappingRestore)
         {
-            RestoreMappings(current, lastKnownIdentity, lastKnownRoot);
+            SelectedDevice = FindDevice(devices, previousIdentity, previousRoot);
+
+            // 只有重新接入「上次使用的那台设备」（身份一致）时才沿用本机设置里的对应关系；
+            // 设备自己根目录里的 .serva-mappings.json 则由 SelectedDevice 的 setter 负责读取。
+            if (_selectedDevice is { } current)
+            {
+                RestoreMappings(current, lastKnownIdentity, lastKnownRoot);
+            }
         }
 
         UpdateDeviceBanner(devices);
@@ -178,7 +188,7 @@ public sealed partial class CompareViewModel
 
         OnPropertyChanged(nameof(MappingSummary));
         OnPropertyChanged(nameof(CanScan));
-        OnPropertyChanged(nameof(CanAddMapping));
+        RaiseMappingPanelState();
     }
     /// <summary>优先按设备身份匹配（换了盘符也能找回），其次按盘符匹配，最后退回第一台设备。</summary>
     private static DeviceInfo? FindDevice(IReadOnlyList<DeviceInfo> devices, string? identity, string? rootPath)

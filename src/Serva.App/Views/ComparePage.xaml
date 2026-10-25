@@ -112,10 +112,29 @@
                                     IsEnabled="{x:Bind ViewModel.CanAddMapping, Mode=OneWay}" />
                             </Grid>
 
+                            <!-- 未选择设备：右侧不允许操作，只提示先选设备（对应关系属于设备，没有目标设备时不能改） -->
+                            <StackPanel
+                                Padding="0,18"
+                                HorizontalAlignment="Center"
+                                Spacing="6"
+                                Visibility="{x:Bind ViewModel.DeviceHintVisibility, Mode=OneWay}">
+                                <FontIcon
+                                    FontSize="20"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Glyph="&#xE88E;" />
+                                <TextBlock
+                                    HorizontalAlignment="Center"
+                                    FontSize="13"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Text="{x:Bind Text.MappingNeedsDevice, Mode=OneWay}" />
+                            </StackPanel>
+
                             <ListView
                                 MaxHeight="200"
+                                IsEnabled="{x:Bind ViewModel.IsMappingPanelEnabled, Mode=OneWay}"
                                 ItemsSource="{x:Bind ViewModel.Mappings}"
-                                SelectionMode="None">
+                                SelectionMode="None"
+                                Visibility="{x:Bind ViewModel.MappingListVisibility, Mode=OneWay}">
                                 <ListView.ItemContainerStyle>
                                     <Style TargetType="ListViewItem">
                                         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
