@@ -41,6 +41,10 @@ public sealed partial class MainWindow : Window
         AppText.Current.PropertyChanged += OnLanguageChanged;
         ApplyNavText();
 
+        // 系统明暗可能在窗口最小化 / 失去焦点期间被改掉：回到前台时再对齐一次外观，
+        // 避免漏掉 UISettings 的变更通知（例如从「设置」应用改完主题再切回来）。
+        Activated += OnWindowActivated;
+
         // 有新版时给「设置」导航项挂一个小红点。
         UpdateService.Current.Changed += OnUpdateChanged;
         RefreshUpdateBadge();
@@ -53,6 +57,13 @@ public sealed partial class MainWindow : Window
         SettingsNavItem.InfoBadge = UpdateService.Current.HasUpdate ? new InfoBadge { Value = 1 } : null;
 
     private void OnUpdateChanged(object? sender, EventArgs e) => RefreshUpdateBadge();
+
+    /// <summary>
+    /// 窗口重新回到前台：按当前的系统明暗再对齐一次外观。
+    /// 「跟随系统」时系统主题可能在窗口失焦期间被改掉，这里兜底一次，不依赖事件一定送达。
+    /// </summary>
+    private void OnWindowActivated(object sender, WindowActivatedEventArgs args) =>
+        AppearanceService.Apply(this, SettingsService.Current.Value);
 
     /// <summary>
     /// 窗口 / 任务栏图标：使用随程序输出的 <c>Assets\icon.ico</c>；标题栏文字左侧的小图标用 <c>Assets\icon.png</c>。
