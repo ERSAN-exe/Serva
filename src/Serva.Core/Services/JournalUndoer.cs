@@ -65,6 +65,17 @@ public sealed partial class JournalUndoer
                             ? CoreText.Get("The file was permanently deleted and cannot be restored", "文件已被直接删除，无法还原")
                             : CoreText.Format("{0}; cannot be restored automatically", "文件{0}，无法自动还原", entry.Message)));
                     break;
+
+                case JournalOperationKind.Backup:
+                    // 副本 SourcePath（.ServaUndoTemp 里的原件）→ 原位 TargetPath
+                    steps.Add(new UndoStep(
+                        UndoActionKind.RestoreFromBackup,
+                        entry.RelativePath,
+                        entry.SourcePath,
+                        entry.TargetPath,
+                        entry.Bytes,
+                        null));
+                    break;
             }
         }
 
@@ -88,13 +99,26 @@ public sealed partial class JournalUndoer
 
         if (entry.Overwritten == true)
         {
+            // 覆盖前保留了原件副本：先删掉本次写入的文件是安全的，原件随后由备份步骤还原回去。
+            if (entry.BackupPath is null)
+            {
+                return new UndoStep(
+                    UndoActionKind.NotPossible,
+                    entry.RelativePath,
+                    entry.SourcePath,
+                    entry.TargetPath,
+                    entry.Bytes,
+                    CoreText.Get("The original file on the target was overwritten and cannot be restored", "目标端原有文件已被覆盖，无法还原"));
+            }
+
             return new UndoStep(
-                UndoActionKind.NotPossible,
+                UndoActionKind.DeleteCreatedFile,
                 entry.RelativePath,
                 entry.SourcePath,
                 entry.TargetPath,
                 entry.Bytes,
-                CoreText.Get("The original file on the target was overwritten and cannot be restored", "目标端原有文件已被覆盖，无法还原"));
+                null,
+                entry.CreatedDirectories);
         }
 
         return new UndoStep(

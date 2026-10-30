@@ -29,11 +29,10 @@ public sealed partial class CompareViewModel
         string local = localRoot.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         string folder = MappingViewModel.Normalize(deviceFolder);
 
-        // 界面上一条都没有、但设备里存着配置（典型情况：刚点过「重新扫描」把列表清空了）：
+        // 界面上一条都没有、但设备里存着配置（例如列表刚被清空 / 刷新过）：
         // 先把设备上的配置读回界面再追加，否则这次保存会把旧配置覆盖成「只剩新加的这一条」。
         if (Mappings.Count == 0)
         {
-            _suppressMappingRestore = false;
             RestoreMappings(device, device.Identity, device.RootPath);
         }
 
@@ -159,12 +158,6 @@ public sealed partial class CompareViewModel
     /// </summary>
     private void RestoreMappings(DeviceInfo device, string? knownIdentity, string? knownRoot)
     {
-
-        // 用户点过「重新扫描」：界面保持空白，不再自动恢复（设备文件与本机设置里的配置仍然保留）。
-        if (_suppressMappingRestore)
-        {
-            return;
-        }
         if (Mappings.Count > 0)
         {
             // 内存里已经有对应关系（例如同一台设备重新接入）：不重复从文件恢复，

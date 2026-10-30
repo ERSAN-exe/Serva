@@ -109,10 +109,10 @@
                 CloseButtonClick="Status_CloseClick"
                 Severity="{x:Bind ViewModel.StatusSeverity, Mode=OneWay}" />
 
-            <!-- ============================== 外观 ============================== -->
+            <!-- ==================== 外观与语言（同一张卡片） ==================== -->
             <Border Style="{StaticResource ServaCard}">
                 <StackPanel Spacing="14">
-                    <TextBlock Style="{StaticResource ServaSectionTitle}" Text="{x:Bind Text.AppearanceSection, Mode=OneWay}" />
+                    <TextBlock Style="{StaticResource ServaSectionTitle}" Text="{x:Bind Text.AppearanceLanguageSection, Mode=OneWay}" />
 
                     <StackPanel>
                         <TextBlock Style="{StaticResource ServaFieldLabel}" Text="{x:Bind Text.ThemeLabel, Mode=OneWay}" />
@@ -122,13 +122,6 @@
                             <RadioButton Content="{x:Bind Text.ThemeDark, Mode=OneWay}" />
                         </RadioButtons>
                     </StackPanel>
-                </StackPanel>
-            </Border>
-
-            <!-- ============================== 语言 ============================== -->
-            <Border Style="{StaticResource ServaCard}">
-                <StackPanel Spacing="14">
-                    <TextBlock Style="{StaticResource ServaSectionTitle}" Text="{x:Bind Text.LanguageSection, Mode=OneWay}" />
 
                     <StackPanel>
                         <TextBlock Style="{StaticResource ServaFieldLabel}" Text="{x:Bind Text.LanguageLabel, Mode=OneWay}" />
@@ -185,6 +178,12 @@
                         IsOn="{x:Bind ViewModel.SkipHiddenAndSystem, Mode=TwoWay}"
                         OffContent="{x:Bind Text.OptionSkipHiddenAndSystem, Mode=OneWay}"
                         OnContent="{x:Bind Text.OptionSkipHiddenAndSystem, Mode=OneWay}" />
+
+                    <ToggleSwitch
+                        IsOn="{x:Bind ViewModel.KeepOverwriteBackup, Mode=TwoWay}"
+                        OffContent="{x:Bind Text.OptionKeepOverwriteBackup, Mode=OneWay}"
+                        OnContent="{x:Bind Text.OptionKeepOverwriteBackup, Mode=OneWay}"
+                        Toggled="KeepOverwriteBackup_Toggled" />
 
                     <ToggleSwitch
                         IsOn="{x:Bind ViewModel.MirrorDelete, Mode=TwoWay}"

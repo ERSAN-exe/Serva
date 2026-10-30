@@ -37,8 +37,7 @@ public sealed partial class CompareViewModel
                 () =>
                 {
                     var leftScanner = new FileScanner(matcher, options.SkipHiddenAndSystem, options.IncludeSubdirectories);
-                    var rightScanner = new FileScanner(
-                        matcher, options.SkipHiddenAndSystem, options.IncludeSubdirectories, _snapshotStore);
+                    var rightScanner = new FileScanner(matcher, options.SkipHiddenAndSystem, options.IncludeSubdirectories);
 
                     var list = new List<(MappingViewModel Mapping, ScanResult Left, ScanResult Right)>();
 

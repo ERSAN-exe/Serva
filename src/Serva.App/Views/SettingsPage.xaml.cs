@@ -16,6 +16,12 @@ public sealed partial class SettingsPage : Page
     /// <summary>页面加载完成前 IsOn 的变化来自绑定初始化，不当作「用户关闭」处理。</summary>
     private bool _trashToggleReady;
 
+    /// <summary>同 <see cref="_suppressTrashToggle"/>：关闭「保留覆盖副本」的取消流程里回写开关。</summary>
+    private bool _suppressBackupToggle;
+
+    /// <summary>同 <see cref="_trashToggleReady"/>：绑定初始化阶段不弹窗。</summary>
+    private bool _backupToggleReady;
+
     public SettingsPage()
     {
         ViewModel = new SettingsViewModel();
@@ -33,6 +39,7 @@ public sealed partial class SettingsPage : Page
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         _trashToggleReady = true;
+        _backupToggleReady = true;
 
         // 更新状态由应用级单例维护：页面在时订阅，离开时退订。
         UpdateService.Current.Changed += OnUpdatesChanged;
@@ -127,6 +134,44 @@ public sealed partial class SettingsPage : Page
         toggle.IsOn = true;
         _suppressTrashToggle = false;
         ViewModel.UseTrashFolder = true;
+    }
+
+    /// <summary>
+    /// 关闭「允许覆盖后保留临时副本用于撤销」意味着覆盖后无法还原，先弹红色确认框；
+    /// 用户选择取消时把开关拨回去。
+    /// </summary>
+    private async void KeepOverwriteBackup_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (!_backupToggleReady || _suppressBackupToggle || sender is not ToggleSwitch toggle || toggle.IsOn)
+        {
+            return;
+        }
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            RequestedTheme = AppearanceService.CurrentElementTheme,
+            Title = StatusPresentation.WarningTitle(AppText.Current.BackupOffDialogTitle),
+            Content = new TextBlock
+            {
+                Text = AppText.Current.BackupOffDialogBody,
+                TextWrapping = TextWrapping.Wrap,
+            },
+            PrimaryButtonText = AppText.Current.TurnOffButton,
+            CloseButtonText = AppText.Current.Cancel,
+            DefaultButton = ContentDialogButton.Close,
+        };
+
+        if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+        {
+            return;
+        }
+
+        // 取消：把开关拨回「开」，并保证设置值也是「开」。
+        _suppressBackupToggle = true;
+        toggle.IsOn = true;
+        _suppressBackupToggle = false;
+        ViewModel.KeepOverwriteBackup = true;
     }
 
     private void RemoveExcludeRule_Click(object sender, RoutedEventArgs e)

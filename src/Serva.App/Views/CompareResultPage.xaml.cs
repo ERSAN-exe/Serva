@@ -1,7 +1,9 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Animation;
+using Serva.App.Controls;
 using Serva.App.Localization;
+using Serva.App.Services;
 using Serva.App.ViewModels;
 
 namespace Serva.App.Views;
@@ -16,6 +18,9 @@ public sealed partial class CompareResultPage : Page
     {
         ViewModel = App.GetCompareViewModel();
         InitializeComponent();
+
+        // 每次进入结果页，筛选都回到「显示所有」。
+        ViewModel.ResetFilter();
     }
 
     public CompareViewModel ViewModel { get; }
@@ -26,11 +31,31 @@ public sealed partial class CompareResultPage : Page
     private void Back_Click(object sender, RoutedEventArgs e) => GoBack();
 
     /// <summary>开始执行：随即回到比较页查看进度与日志。</summary>
-    private void Start_Click(object sender, RoutedEventArgs e)
+    private async void Start_Click(object sender, RoutedEventArgs e)
     {
         if (!ViewModel.CanStart)
         {
             return;
+        }
+
+        // 保留覆盖副本的空间不够：红色标题弹窗确认是否继续（继续则被覆盖的文件无法撤销）。
+        if (ViewModel.BackupSpaceWarning() is { } warning)
+        {
+            var dialog = new ContentDialog
+            {
+                XamlRoot = XamlRoot,
+                RequestedTheme = AppearanceService.CurrentElementTheme,
+                Title = StatusPresentation.WarningTitle(AppText.Current.BackupSpaceDialogTitle),
+                Content = new TextBlock { Text = warning, TextWrapping = TextWrapping.Wrap },
+                PrimaryButtonText = AppText.Current.ContinueButton,
+                CloseButtonText = AppText.Current.Cancel,
+                DefaultButton = ContentDialogButton.Close,
+            };
+
+            if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+            {
+                return;
+            }
         }
 
         ViewModel.StartCommand.Execute(null);
@@ -48,6 +73,6 @@ public sealed partial class CompareResultPage : Page
         Frame.Navigate(typeof(ComparePage));
     }
 
-    /// <summary>「执行策略」链接：跳到设置页面，让用户查看/修改执行策略。</summary>
+    /// <summary>「执行策略」按钮：跳到设置页面，让用户查看 / 修改全局执行策略。</summary>
     private void OpenSettings_Click(object sender, RoutedEventArgs e) => App.MainWindow?.NavigateToSettings();
 }

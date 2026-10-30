@@ -15,7 +15,6 @@ namespace Serva.App.ViewModels;
 /// </summary>
 public sealed partial class CompareViewModel : ObservableObject, IDisposable
 {
-    private readonly SnapshotStore _snapshotStore = new();
     private readonly CompareEngine _compareEngine = new();
     private readonly PlanBuilder _planBuilder = new();
     private readonly SyncEngine _syncEngine = new();
@@ -37,7 +36,7 @@ public sealed partial class CompareViewModel : ObservableObject, IDisposable
     private bool _isBusy;
     private bool _isRunning;
     private bool _isAllSelected = true;
-    private bool _showOnlyDifferences = true;
+    private ResultFilter _filter = ResultFilter.Differences;
 
     /// <summary>与设置页<strong>共享</strong>的同一份设置实例。</summary>
     private static AppSettings _settings => SettingsService.Current.Value;

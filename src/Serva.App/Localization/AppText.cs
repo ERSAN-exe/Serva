@@ -128,15 +128,30 @@ public sealed class AppText : INotifyPropertyChanged
 
     public string ActionOverwriteLocal => T("Overwrite local disk", "覆盖本机硬盘");
 
-    public string DeviceFilesHandledPrefix => T("Extra files on the device are handled according to ", "设备上多出来的文件按");
-
-    public string DeviceFilesHandledSuffix => T(".", "处理。");
-
     public string ActionPolicy => T("Action policy", "执行策略");
 
     public string OpenSettingsTooltip => T("Open the settings page", "打开设置页面");
 
-    public string ShowOnlyDifferences => T("Only show differences", "只显示有差异项目");
+    /// <summary>结果表筛选下拉菜单：显示所有（两端完全一致的仍不显示）。</summary>
+    public string FilterAll => T("Show all", "显示所有");
+
+    /// <summary>结果表筛选下拉菜单：本机更新。</summary>
+    public string FilterLocalNewer => T("Local newer", "本机更新");
+
+    /// <summary>结果表筛选下拉菜单：设备更新。</summary>
+    public string FilterDeviceNewer => T("Device newer", "设备更新");
+
+    /// <summary>结果表筛选下拉菜单：仅设备。</summary>
+    public string FilterDeviceOnly => T("Device only", "仅设备");
+
+    /// <summary>结果表筛选下拉菜单：仅本机。</summary>
+    public string FilterLocalOnly => T("Local only", "仅本机");
+
+    /// <summary>结果表筛选下拉菜单：将被覆盖。</summary>
+    public string FilterOverwritten => T("Will be overwritten", "将被覆盖");
+
+    /// <summary>结果表筛选下拉菜单：将删除的项目。</summary>
+    public string FilterDeletions => T("To be deleted", "将删除的项目");
 
     public string ColumnFileName => T("File name", "文件名");
 
@@ -158,7 +173,8 @@ public sealed class AppText : INotifyPropertyChanged
 
     public string SettingsTitle => T("Settings", "设置");
 
-    public string AppearanceSection => T("Appearance", "外观");
+    /// <summary>设置页：外观与语言合并成的一张卡片。</summary>
+    public string AppearanceLanguageSection => T("Appearance and language", "外观与语言");
 
     public string ThemeLabel => T("Color mode", "明暗主题");
 
@@ -167,8 +183,6 @@ public sealed class AppText : INotifyPropertyChanged
     public string ThemeLight => T("Light", "浅色");
 
     public string ThemeDark => T("Dark", "深色");
-
-    public string LanguageSection => T("Language", "语言");
 
     public string LanguageLabel => T("Display language", "显示语言");
 
@@ -191,6 +205,11 @@ public sealed class AppText : INotifyPropertyChanged
     public string OptionMirrorDelete => T("Delete extra files on the target", "删除目标端多余文件");
 
     public string OptionRecycleBin => T("Move deleted files to the Recycle Bin", "删除时移入系统回收站");
+
+    /// <summary>执行策略：覆盖前把原件挪进 .ServaUndoTemp，撤销时可以还原。</summary>
+    public string OptionKeepOverwriteBackup => T(
+        "Keep temporary copies of overwritten files for undo",
+        "允许覆盖后保留临时副本用于撤销");
 
     public string ExcludeRulesSection => T("Exclude rules", "排除规则");
 
@@ -237,10 +256,10 @@ public sealed class AppText : INotifyPropertyChanged
 
     public string UndoDialogBody => T(
         "Undo deletes the files newly copied by this run. Files that were moved to the Recycle Bin must be restored from the Recycle Bin by yourself.\n"
-        + "Files that already existed on the target and were overwritten stay as they are and are not restored automatically.\n\n"
+        + "Overwritten files are restored from the temporary copies kept under .ServaUndoTemp — unless \"Keep temporary copies of overwritten files for undo\" is off, in which case they stay as they are.\n\n"
         + "Continue?",
         "撤销会删除本次运行新复制的文件；移入系统回收站的文件需要你自行从回收站还原。\n"
-        + "目标端原本存在的文件如果已被覆盖，将保持现状、不会被自动还原。\n\n"
+        + "被覆盖的文件会用 .ServaUndoTemp 里的临时副本还原；若关闭了「允许覆盖后保留临时副本用于撤销」，它们将保持现状、无法还原。\n\n"
         + "是否继续？");
 
     public string UndoButton => T("Undo", "撤销");
@@ -262,6 +281,22 @@ public sealed class AppText : INotifyPropertyChanged
         "关闭后，目标端多余的文件会被直接永久删除，无法从回收站还原。\n\n是否继续？");
 
     public string TurnOffButton => T("Turn off", "关闭");
+
+    /// <summary>关闭「保留临时副本」时的确认弹窗（红色标题）。</summary>
+    public string BackupOffDialogTitle => T(
+        "Turn off keeping copies of overwritten files?",
+        "关闭「允许覆盖后保留临时副本用于撤销」？");
+
+    public string BackupOffDialogBody => T(
+        "When off, files are overwritten in place and \"Undo this run\" cannot bring the original contents back.\n\nContinue?",
+        "关闭后，被覆盖的文件会被直接盖掉，「撤销本次运行」无法还原原来的内容。\n\n是否继续？");
+
+    /// <summary>覆盖前副本空间不足时的确认弹窗（红色标题）。</summary>
+    public string BackupSpaceDialogTitle => T(
+        "Not enough space to keep undo copies",
+        "磁盘空间不足，无法保留撤销副本");
+
+    public string ContinueButton => T("Continue", "继续");
 
     // ============================ 文件夹浏览对话框 ============================
 
@@ -285,5 +320,6 @@ public sealed class AppText : INotifyPropertyChanged
 
     public string ChooseDrivePrompt => T("Select a drive to open", "请选择要进入的驱动器");
 
-    public string DesktopFolder => T("Desktop", "桌面");
+    /// <summary>文件夹选择页里的快捷入口：当前用户的文件夹（<c>C:\Users\&lt;用户名&gt;</c>）。</summary>
+    public string UserFolder => T("User folder", "用户文件夹");
 }

@@ -48,6 +48,9 @@ public class SyncUndoTests
         SyncOptions options = SyncFixture.Options();
         options.MirrorDelete = true;
 
+        // 关闭「保留临时副本」：覆盖就是直接盖掉，撤销无法还原被覆盖的内容（本用例验证的正是这条路）。
+        options.KeepOverwriteBackup = false;
+
         SyncRunResult run = await SyncFixture.RunAsync(
             left.Root, right.Root, SyncMode.BackupToDevice, options, SyncFixture.NewTempDirectory("journal"));
 
@@ -62,6 +65,37 @@ public class SyncUndoTests
         Assert.Equal("LOCAL-NEW", right.Read("a.txt"));
         Assert.Contains(undo.Messages, m => m.Contains("Recycle Bin"));
         Assert.Contains(undo.Messages, m => m.Contains("overwritten"));
+    }
+
+    [Fact]
+    public async Task Undo_RestoresOverwrittenOriginalFromBackup()
+    {
+        using var left = new TestTree("undo-backup-left");
+        using var right = new TestTree("undo-backup-right");
+
+        left.Add("a.txt", "LOCAL-NEW", CompareFixture.Base.AddDays(1));
+        right.Add("a.txt", "DEVICE-OLD", CompareFixture.Base);
+
+        // 默认开启「允许覆盖后保留临时副本用于撤销」。
+        SyncRunResult run = await SyncFixture.RunAsync(
+            left.Root, right.Root, SyncMode.BackupToDevice, SyncFixture.Options(), SyncFixture.NewTempDirectory("journal"));
+
+        // 覆盖后设备上是新内容，原件被挪进同目录的隐藏目录 .ServaUndoTemp。
+        Assert.Equal("LOCAL-NEW", right.Read("a.txt"));
+        Assert.True(Directory.Exists(Path.Combine(right.Root, OverwriteBackup.FolderName)));
+        Assert.True(right.Exists($"{OverwriteBackup.FolderName}/a.txt"));
+        Assert.Equal("DEVICE-OLD", right.Read($"{OverwriteBackup.FolderName}/a.txt"));
+
+        UndoResult undo = UndoFrom(run.JournalPath);
+
+        // 撤销：删掉本次写入的文件，再把原件还原回原位。
+        Assert.Equal(1, undo.Restored);
+        Assert.Equal("DEVICE-OLD", right.Read("a.txt"));
+
+        // 还原出来的文件不能是隐藏的；临时目录也应该已经被删掉。
+        Assert.True((File.GetAttributes(right.PathOf("a.txt")) & FileAttributes.Hidden) == 0);
+        Assert.False(right.Exists($"{OverwriteBackup.FolderName}/a.txt"));
+        Assert.False(Directory.Exists(Path.Combine(right.Root, OverwriteBackup.FolderName)));
     }
 
     [Fact]

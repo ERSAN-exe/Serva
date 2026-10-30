@@ -17,10 +17,19 @@ public sealed partial class CompareViewModel
     private bool _isRefreshingDevices;
 
     /// <summary>
-    /// 用户点过「重新扫描」之后，对应关系不再自动恢复（界面保持空白），
-    /// 直到换了一台设备或用户自己重新添加。
+    /// 当前的设备集合（身份 + 盘符），用于判断「设备集合是否真的变了（插入 / 拔出）」。
+    /// <para>
+    /// 不能用 <see cref="_deviceSignature"/> 判断：用户点「重新扫描」时会先把它清空，
+    /// 那样同一台设备也会被当成「设备变了」。
+    /// </para>
     /// </summary>
-    private bool _suppressMappingRestore;
+    private readonly HashSet<string> _knownDevices = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// 用户点过「重新扫描」：界面上的对应关系被清空、设备也不再自动选中，
+    /// 直到用户自己点选设备（或插拔设备）为止 —— 避免在空白列表上改配置，把设备里的旧配置覆盖掉。
+    /// </summary>
+    private bool _mappingsClearedByRescan;
 
     /// <summary>挂接窗口：注册 WM_DEVICECHANGE 并启动 3 秒兜底轮询。</summary>
     public void AttachWindow(Window window)
@@ -61,17 +70,17 @@ public sealed partial class CompareViewModel
     /// <summary>供日志页调用：撤销之后比较结果已不可信，清空并提示重扫。</summary>
     public void InvalidateResults(Func<string> summary) => ResetResults(summary);
 
-    /// <param name="userInitiated">是否是用户点了「重新扫描」（会清空对应关系且不再自动恢复）。</param>
+    /// <param name="userInitiated">是否是用户点了「重新扫描」（会清空界面上的对应关系，并等用户重新选择设备）。</param>
     private void RefreshDevices(bool userInitiated = false)
     {
         _deviceSignature = null;
 
         if (userInitiated)
         {
-            // 对应关系属于设备：重新扫描时界面清空，并解除设备选中 ——
-            // 右侧「对应关系」随之锁定、只提示「选择一个可移动设备」，
-            // 必须由用户重新点选设备才会读回它自己的配置（避免在空白列表上改配置、把旧配置覆盖掉）。
-            _suppressMappingRestore = true;
+            // 重新扫描：清空界面上的对应关系、取消设备选中 —— 右侧「对应关系」随之锁定，
+            // 只提示「选择一个可移动设备」；等用户重新点选设备时才读回那台设备的配置。
+            // （配置本身仍在设备文件与本机设置里，不会丢。）
+            _mappingsClearedByRescan = true;
             ClearMappingsInMemory();
             SelectedDevice = null;
             ResetResults(() => Text.T(
@@ -108,10 +117,25 @@ public sealed partial class CompareViewModel
 
         if (string.Equals(signature, _deviceSignature, StringComparison.Ordinal))
         {
+            // 列表本身没变，但界面上的对应关系可能还是空的（设备刚挂载时设备文件还没读到、
+            // 或上一次读取因为设备忙而失败）：每次轮询顺手再读一次 ——
+            // 读不到东西不会有副作用（不会写设备文件），读到了就把配置补上。
+            if (_selectedDevice is { } stale && Mappings.Count == 0)
+            {
+                RestoreMappings(stale, _settings.LastTargetIdentity, _settings.LastTargetRoot);
+            }
+
             return;
         }
 
         _deviceSignature = signature;
+
+        // 设备集合真的变了（插入 / 拔出）：结束「重新扫描后等用户重选」的状态 ——
+        // 插上设备就应该自动选中它并读回它自己的对应关系。
+        if (UpdateKnownDevices(devices))
+        {
+            _mappingsClearedByRescan = false;
+        }
 
         DeviceInfo? activeDeviceBefore = _selectedDevice;
 
@@ -136,9 +160,13 @@ public sealed partial class CompareViewModel
             _isRefreshingDevices = false;
         }
 
-        // 用户点过「重新扫描」：列表已清空，此时不再自动选中设备 ——
-        // 右侧保持锁定并提示「选择一个可移动设备」，等用户自己点选（点选时才读回那台设备的配置）。
-        if (!_suppressMappingRestore)
+        if (_mappingsClearedByRescan)
+        {
+            // 刚点过「重新扫描」、设备集合也没变：保持未选中状态（右侧锁定 + 提示选择一个可移动设备），
+            // 等用户自己点选设备时才读回那台设备的配置。
+            SelectedDevice = null;
+        }
+        else
         {
             SelectedDevice = FindDevice(devices, previousIdentity, previousRoot);
 
@@ -169,12 +197,30 @@ public sealed partial class CompareViewModel
     }
 
     /// <summary>
-    /// 用户点了设备列表里的某一台设备：解除「重新扫描」后的抑制，并重新读取这台设备的对应关系
+    /// 记录当前的设备集合并返回「集合是否真的变了（插入 / 拔出）」。
+    /// <para>同一台设备换盘符 / 换卷标不算插拔，只有设备的加入或移除才算。</para>
+    /// </summary>
+    private bool UpdateKnownDevices(IReadOnlyList<DeviceInfo> devices)
+    {
+        var current = new HashSet<string>(
+            devices.Select(static d => $"{d.Identity}|{d.RootPath}"),
+            StringComparer.OrdinalIgnoreCase);
+
+        bool changed = current.Count != _knownDevices.Count || !current.SetEquals(_knownDevices);
+
+        _knownDevices.Clear();
+        _knownDevices.UnionWith(current);
+        return changed;
+    }
+
+    /// <summary>
+    /// 用户点选了设备列表里的某一台设备：重新读取这台设备的对应关系
     /// （对应关系跟着设备走，重新选择设备就应该看到它自己的配置）。
     /// </summary>
     public void SelectDevice(DeviceInfo device)
     {
-        _suppressMappingRestore = false;
+        // 用户主动选择设备：结束「重新扫描」后的清空状态，读回这台设备的配置。
+        _mappingsClearedByRescan = false;
 
         if (!ReferenceEquals(_selectedDevice, device))
         {

@@ -1,6 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 using Serva.App.Controls;
+using Serva.App.Localization;
 using Serva.Core.Models;
 
 namespace Serva.App.ViewModels;
@@ -45,9 +46,55 @@ public sealed class CompareRowViewModel : ObservableObject
 
     public string SizeText => DeviceInfo.Format(Model.Size);
 
-    public string ModifiedText => Model.LastWriteTimeUtc is { } time
-        ? time.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
-        : "—";
+    /// <summary>
+    /// 修改时间列：显示<strong>比较新旧时用的那份时间</strong> —— 状态列说哪一侧较新，这里就是那一侧的时间；
+    /// 只在单侧存在时显示该侧时间，其余（相同 / 冲突 / 删除）取本机优先。
+    /// </summary>
+    public string ModifiedText => Model.DisplayStatus switch
+    {
+        CompareStatus.RightNewer when Model.Item.Right is { } right => FormatTime(right.LastWriteTimeUtc),
+        CompareStatus.LeftNewer when Model.Item.Left is { } left => FormatTime(left.LastWriteTimeUtc),
+        CompareStatus.RightOnly when Model.Item.Right is { } right => FormatTime(right.LastWriteTimeUtc),
+        CompareStatus.LeftOnly when Model.Item.Left is { } left => FormatTime(left.LastWriteTimeUtc),
+        _ => Model.LastWriteTimeUtc is { } time ? FormatTime(time) : "—",
+    };
+
+    /// <summary>
+    /// 修改时间列的悬停说明：两端各自的修改时间（精确到秒）—— 新旧就是按这两个时间判定的。
+    /// </summary>
+    public string ModifiedTooltip
+    {
+        get
+        {
+            AppText text = AppText.Current;
+            FileEntry? left = Model.Item.Left;
+            FileEntry? right = Model.Item.Right;
+
+            if (left is not null && right is not null)
+            {
+                return text.F(
+                    "Local: {0}\nDevice: {1}",
+                    "本机：{0}\n设备：{1}",
+                    FormatTime(left.LastWriteTimeUtc, withSeconds: true),
+                    FormatTime(right.LastWriteTimeUtc, withSeconds: true));
+            }
+
+            if (left is not null)
+            {
+                return text.F(
+                    "Local only: {0}",
+                    "仅本机：{0}",
+                    FormatTime(left.LastWriteTimeUtc, withSeconds: true));
+            }
+
+            return right is not null
+                ? text.F("Device only: {0}", "仅设备：{0}", FormatTime(right.LastWriteTimeUtc, withSeconds: true))
+                : string.Empty;
+        }
+    }
+
+    private static string FormatTime(DateTime utc, bool withSeconds = false) =>
+        utc.ToLocalTime().ToString(withSeconds ? "yyyy-MM-dd HH:mm:ss" : "yyyy-MM-dd HH:mm");
 
     public CompareStatus DisplayStatus => Model.DisplayStatus;
 

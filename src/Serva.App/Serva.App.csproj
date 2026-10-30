@@ -11,7 +11,7 @@
 		<ApplicationIcon>Assets\icon.ico</ApplicationIcon>
 
 		<!-- 版本号唯一来源：编译进程序集，「设置 → 关于」与更新检查都读它 -->
-		<Version>0.2.1</Version>
+		<Version>0.3.0</Version>
 
 		<!-- 本机为 Windows on ARM（win-arm64）；x64 同样可构建 -->
 		<Platforms>ARM64;x64</Platforms>

@@ -9,26 +9,29 @@ public sealed record ScanProgress(int FilesFound, long BytesFound, string Curren
 
 /// <summary>
 /// 文件系统扫描器。
-/// <para>目录遍历与文件枚举分两阶段：先用「增量快照」比对目录时间戳，命中即跳过读盘（秒级复扫）；
-/// 未命中才完整枚举文件。</para>
+/// <para>
+/// 每次都读取真实的文件元数据（大小 / 修改时间 / 属性）。
+/// </para>
+/// <para>
+/// 不能用「目录时间戳 + 增量快照」跳过读盘：修改文件<strong>内容</strong>只会更新文件的修改时间，
+/// <strong>不会</strong>改变所在目录的时间戳 —— 命中缓存就会拿到旧的修改时间，
+/// 表现为「设备端文件更新，却显示本机较新」（比较新旧完全依赖这个时间）。
+/// </para>
 /// </summary>
 public sealed partial class FileScanner
 {
     private readonly ExcludeMatcher _matcher;
     private readonly bool _skipHiddenAndSystem;
     private readonly bool _includeSubdirectories;
-    private readonly SnapshotStore? _snapshotStore;
 
     public FileScanner(
         ExcludeMatcher matcher,
         bool skipHiddenAndSystem = false,
-        bool includeSubdirectories = true,
-        SnapshotStore? snapshotStore = null)
+        bool includeSubdirectories = true)
     {
         _matcher = matcher;
         _skipHiddenAndSystem = skipHiddenAndSystem;
         _includeSubdirectories = includeSubdirectories;
-        _snapshotStore = snapshotStore;
     }
 
     /// <summary>扫描单个来源（可以是文件或文件夹）。</summary>
@@ -60,16 +63,6 @@ public sealed partial class FileScanner
         }
 
         List<(string Rel, string Full)> directories = EnumerateDirectories(root, cancellationToken);
-        Dictionary<string, long> directoryTimes = CaptureDirectoryTimes(root, directories);
-
-        if (_snapshotStore is not null && !string.IsNullOrEmpty(volumeSerial))
-        {
-            ScanResult? cached = _snapshotStore.TryReload(root, volumeSerial, directoryTimes, stopwatch);
-            if (cached is not null)
-            {
-                return cached;
-            }
-        }
 
         var found = new Dictionary<string, FileEntry>(StringComparer.OrdinalIgnoreCase);
         long bytes = 0;
@@ -103,18 +96,11 @@ public sealed partial class FileScanner
 
         stopwatch.Stop();
 
-        ScanResult result = new(
+        return new ScanResult(
             root,
             found,
             [.. directories.Select(static d => d.Rel)],
             stopwatch.Elapsed,
             DateTime.UtcNow);
-
-        if (_snapshotStore is not null && !string.IsNullOrEmpty(volumeSerial))
-        {
-            _snapshotStore.Save(result, volumeSerial, directoryTimes);
-        }
-
-        return result;
     }
 }

@@ -63,6 +63,30 @@ public class PlanBuilderTests
     }
 
     [Fact]
+    public void ForceOverwrite_ExtraFilesFollowTheMirrorDeletePolicy()
+    {
+        CompareResult compare = CompareFixture.BuildCompare(
+            ("device-only.txt", null, CompareFixture.Right("device-only.txt"), CompareStatus.RightOnly),
+            ("local-only.txt", CompareFixture.Left("local-only.txt"), null, CompareStatus.LeftOnly));
+
+        // 执行策略没开「删除目标端多余文件」：覆盖模式也只复制，不删两边多出来的文件。
+        SyncPlan quietToDevice = _builder.Build(compare, SyncMode.BackupToDevice, new SyncOptions(), forceOverwrite: true);
+        Assert.Equal(PlanAction.None, quietToDevice.Items.Single(i => i.RelativePath == "device-only.txt").Action);
+
+        SyncPlan quietToLocal = _builder.Build(compare, SyncMode.DeviceToLocal, new SyncOptions(), forceOverwrite: true);
+        Assert.Equal(PlanAction.None, quietToLocal.Items.Single(i => i.RelativePath == "local-only.txt").Action);
+
+        // 打开「删除目标端多余文件」：覆盖模式同样按执行策略镜像删除。
+        var mirror = new SyncOptions { MirrorDelete = true };
+
+        SyncPlan mirrorToDevice = _builder.Build(compare, SyncMode.BackupToDevice, mirror, forceOverwrite: true);
+        Assert.Equal(PlanAction.DeleteOnDevice, mirrorToDevice.Items.Single(i => i.RelativePath == "device-only.txt").Action);
+
+        SyncPlan mirrorToLocal = _builder.Build(compare, SyncMode.DeviceToLocal, mirror, forceOverwrite: true);
+        Assert.Equal(PlanAction.DeleteOnLocal, mirrorToLocal.Items.Single(i => i.RelativePath == "local-only.txt").Action);
+    }
+
+    [Fact]
     public void ForceOverwrite_SendsNewerDeviceFilesBackToo()
     {
         CompareResult compare = CompareFixture.BuildCompare(
@@ -83,6 +107,74 @@ public class PlanBuilderTests
         // 合并路径（默认冲突策略：两者都保留）会给目标端一个变体名；强制覆盖不会。
         Assert.NotNull(merged.Items.Single(i => i.RelativePath == "both-changed.txt").PreserveTargetAs);
         Assert.Null(forced.Items.Single(i => i.RelativePath == "both-changed.txt").PreserveTargetAs);
+    }
+
+    [Fact]
+    public void TwoWay_NewerWinsBothWays_AndIgnoresMirrorDelete()
+    {
+        CompareResult compare = CompareFixture.BuildCompare(
+            ("local-only.txt", CompareFixture.Left("local-only.txt"), null, CompareStatus.LeftOnly),
+            ("device-only.txt", null, CompareFixture.Right("device-only.txt"), CompareStatus.RightOnly),
+            ("local-newer.txt", CompareFixture.Left("local-newer.txt"), CompareFixture.Right("local-newer.txt"), CompareStatus.LeftNewer),
+            ("device-newer.txt", CompareFixture.Left("device-newer.txt"), CompareFixture.Right("device-newer.txt"), CompareStatus.RightNewer),
+            ("both-changed.txt", CompareFixture.Left("both-changed.txt", 5), CompareFixture.Right("both-changed.txt", 6), CompareStatus.Conflict));
+
+        // 执行策略开了「删除目标端多余文件」：合并同样忽略它，只补充、不删除。
+        SyncPlan plan = _builder.Build(compare, SyncMode.TwoWay, new SyncOptions { MirrorDelete = true });
+
+        // 比较新旧：谁新就用谁覆盖另一边。
+        Assert.Equal(PlanAction.CopyToDevice, plan.Items.Single(i => i.RelativePath == "local-newer.txt").Action);
+        Assert.Equal(PlanAction.CopyToLocal, plan.Items.Single(i => i.RelativePath == "device-newer.txt").Action);
+
+        // 互相补充新文件（两侧独有的都拷到对面）。
+        Assert.Equal(PlanAction.CopyToDevice, plan.Items.Single(i => i.RelativePath == "local-only.txt").Action);
+        Assert.Equal(PlanAction.CopyToLocal, plan.Items.Single(i => i.RelativePath == "device-only.txt").Action);
+
+        // 一条删除都不产生：「删除目标端多余文件」对合并不生效。
+        Assert.Equal(0, plan.CountOf(CompareStatus.Delete));
+        Assert.DoesNotContain(plan.Items, static i => i.Action is PlanAction.DeleteOnDevice or PlanAction.DeleteOnLocal);
+
+        // 两边都改过的文件：保留较新版本（本机那个比设备新 → 覆盖设备），不再生成「（设备版本）」副本。
+        PlanItem conflict = plan.Items.Single(i => i.RelativePath == "both-changed.txt");
+        Assert.Equal(PlanAction.CopyToDevice, conflict.Action);
+        Assert.Null(conflict.PreserveTargetAs);
+    }
+
+    [Fact]
+    public void TwoWay_Conflict_KeepsNewerVersion()
+    {
+        // 本机更新：用本机版本覆盖设备。
+        CompareResult localNewer = CompareFixture.BuildCompare(
+            ("a.txt",
+             CompareFixture.Entry("a.txt", 10, CompareFixture.Base.AddDays(2)),
+             CompareFixture.Entry("a.txt", 11, CompareFixture.Base),
+             CompareStatus.Conflict));
+
+        PlanItem toDevice = _builder.Build(localNewer, SyncMode.TwoWay, new SyncOptions()).Items.Single();
+        Assert.Equal(PlanAction.CopyToDevice, toDevice.Action);
+        Assert.Null(toDevice.PreserveTargetAs);
+
+        // 设备更新：用设备版本覆盖本机。
+        CompareResult deviceNewer = CompareFixture.BuildCompare(
+            ("b.txt",
+             CompareFixture.Entry("b.txt", 10, CompareFixture.Base),
+             CompareFixture.Entry("b.txt", 11, CompareFixture.Base.AddDays(2)),
+             CompareStatus.Conflict));
+
+        PlanItem toLocal = _builder.Build(deviceNewer, SyncMode.TwoWay, new SyncOptions()).Items.Single();
+        Assert.Equal(PlanAction.CopyToLocal, toLocal.Action);
+        Assert.Null(toLocal.PreserveTargetAs);
+
+        // 时间完全相同时无法判断：退回「两者都保留」（目标端旧版本改名）。
+        CompareResult sameTime = CompareFixture.BuildCompare(
+            ("c.txt",
+             CompareFixture.Entry("c.txt", 10, CompareFixture.Base),
+             CompareFixture.Entry("c.txt", 11, CompareFixture.Base),
+             CompareStatus.Conflict));
+
+        PlanItem keepBoth = _builder.Build(sameTime, SyncMode.TwoWay, new SyncOptions()).Items.Single();
+        Assert.Equal(PlanAction.CopyToDevice, keepBoth.Action);
+        Assert.NotNull(keepBoth.PreserveTargetAs);
     }
 
     [Fact]

@@ -213,6 +213,79 @@ public sealed partial class CompareViewModel
             deviceLabel: _selectedDevice?.VolumeLabel);
     }
 
+    /// <summary>
+    /// 覆盖前保留原件副本（<c>.ServaUndoTemp</c>）所需的额外空间，按盘符分别统计。
+    /// 空间不够时返回给界面弹窗用的文案；够用 / 执行策略关闭了「保留临时副本」时返回 <c>null</c>。
+    /// </summary>
+    public string? BackupSpaceWarning()
+    {
+        if (!_settings.Options.KeepOverwriteBackup)
+        {
+            return null;
+        }
+
+        var needed = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (MappingState state in _states)
+        {
+            if (state.Plan is null)
+            {
+                continue;
+            }
+
+            foreach (PlanItem item in state.Plan.Items)
+            {
+                if (!item.IsSelected || !item.IsActionable)
+                {
+                    continue;
+                }
+
+                string? target = TargetPathOf(item, state.Mapping);
+                if (target is null || !File.Exists(target))
+                {
+                    continue;
+                }
+
+                string? root = Path.GetPathRoot(target);
+                if (string.IsNullOrEmpty(root))
+                {
+                    continue;
+                }
+
+                needed.TryGetValue(root, out long total);
+                needed[root] = total + new FileInfo(target).Length;
+            }
+        }
+
+        foreach ((string root, long bytes) in needed)
+        {
+            long free = FreeSpaceOf(root);
+            if (free > 0 && bytes > free)
+            {
+                return Text.F(
+                    "Not enough free space on {0} to keep copies of the files that will be overwritten ({1} needed). Overwritten files will not be undoable. Continue?",
+                    "{0} 剩余空间不足，无法保留将被覆盖文件的原件副本（还差 {1}）；已覆盖的文件将无法撤销。是否继续执行？",
+                    root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                    DeviceInfo.Format(bytes - free));
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>该计划项要写入的目标路径（不是复制动作时返回 <c>null</c>）。</summary>
+    private static string? TargetPathOf(PlanItem item, MappingViewModel mapping)
+    {
+        string relative = (item.TargetFileName ?? item.RelativePath).Replace('/', Path.DirectorySeparatorChar);
+
+        return item.Action switch
+        {
+            PlanAction.CopyToDevice => Path.Combine(mapping.DeviceFolderAbsolute, relative),
+            PlanAction.CopyToLocal => Path.Combine(mapping.LocalRoot, relative),
+            _ => null,
+        };
+    }
+
     /// <summary>执行前预检：目标设备与各本机文件夹的剩余空间。</summary>
     private bool PrecheckSpace(SyncPlan plan, DeviceInfo device)
     {

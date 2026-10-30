@@ -69,32 +69,34 @@ public class FileScannerTests
     }
 
     [Fact]
-    public void SnapshotIsUsedWhenDirectoriesAreUnchanged()
+    public void RescanAlwaysReadsFreshFileTimes()
     {
-        using var tree = new TestTree("scan-snapshot");
-        tree.Add("a.txt", "A");
+        // 修改文件内容不会改变所在目录的时间戳：以前用「目录时间戳 + 快照」跳过读盘，
+        // 复扫会拿到旧的修改时间，导致「设备端文件更新却显示本机较新」。现在每次扫描都读真实元数据。
+        using var tree = new TestTree("scan-fresh");
+        string file = tree.Add("a.txt", "OLD");
 
-        var store = new SnapshotStore(SyncFixture.NewTempDirectory("state"));
-        var scanner = new FileScanner(new ExcludeMatcher(), snapshotStore: store);
-
-        ScanResult first = scanner.Scan(tree.Root, "TESTSERIAL");
-        ScanResult second = scanner.Scan(tree.Root, "TESTSERIAL");
-
+        ScanResult first = new FileScanner(new ExcludeMatcher()).Scan(tree.Root, "TESTSERIAL");
         Assert.False(first.IsFromSnapshot);
-        Assert.True(second.IsFromSnapshot);
-        Assert.Equal(first.FileCount, second.FileCount);
-        Assert.Equal("A", File.ReadAllText(second.Files["a.txt"].FullPath));
+
+        DateTime updated = CompareFixture.Base.AddDays(3);
+        File.WriteAllText(file, "NEW CONTENT");
+        File.SetLastWriteTimeUtc(file, updated);
+
+        ScanResult second = new FileScanner(new ExcludeMatcher()).Scan(tree.Root, "TESTSERIAL");
+
+        Assert.False(second.IsFromSnapshot);
+        Assert.Equal(updated, second.Files["a.txt"].LastWriteTimeUtc);
+        Assert.Equal("NEW CONTENT".Length, second.Files["a.txt"].Length);
     }
 
     [Fact]
-    public void SnapshotIsInvalidatedWhenAFolderContentChanges()
+    public void RescanSeesFilesAddedAfterTheFirstScan()
     {
         using var tree = new TestTree("scan-snapshot-invalidate");
         tree.Add("a.txt", "A");
 
-        var store = new SnapshotStore(SyncFixture.NewTempDirectory("state"));
-        var scanner = new FileScanner(new ExcludeMatcher(), snapshotStore: store);
-
+        var scanner = new FileScanner(new ExcludeMatcher());
         _ = scanner.Scan(tree.Root, "TESTSERIAL");
         tree.Add("b.txt", "B");
 

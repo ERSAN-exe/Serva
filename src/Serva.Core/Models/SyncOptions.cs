@@ -24,6 +24,14 @@ public sealed class SyncOptions
     public bool SkipHiddenAndSystem { get; set; }
 
     /// <summary>
+    /// 覆盖目标端已有文件前，先把原件挪进同目录的隐藏文件夹 <c>.ServaUndoTemp</c>，供撤销还原。
+    /// <para>
+    /// 关闭后覆盖就是「直接盖掉」，撤销时无法还原被覆盖的内容；软件退出时这些副本一律删除。
+    /// </para>
+    /// </summary>
+    public bool KeepOverwriteBackup { get; set; } = true;
+
+    /// <summary>
     /// 并发复制数：默认按 CPU 自动取值（读写充分并行，又不会吃满系统）。
     /// 界面不再提供该设置，需要时可显式赋值。
     /// </summary>
@@ -36,8 +44,8 @@ public sealed class SyncOptions
     public static int DefaultConcurrency => Math.Clamp(Environment.ProcessorCount / 2, 2, 6);
 
     /// <summary>
-    /// 两端都改动过时的处理方式。界面不再提供该设置，固定按「两者都保留」合并，
-    /// 需要强制覆盖时由扫描结果弹窗里的「覆盖」处理方式决定。
+    /// 两端都改动过时的处理方式。界面不再提供该设置：
+    /// 「合并」按<strong>较新版本</strong>处理（谁新用谁覆盖），其余单向模式按「两者都保留」合并。
     /// </summary>
     public ConflictResolution ConflictResolution { get; set; } = ConflictResolution.KeepBoth;
 
@@ -70,6 +78,12 @@ public sealed class SyncOptions
         {
             ExcludePatterns.Add(DeviceMappingStore.FileName);
         }
+
+        // 覆盖前的临时副本目录同理：既不能被同步，也不能被镜像删除。
+        if (!ExcludePatterns.Contains(OverwriteBackup.FolderName, StringComparer.OrdinalIgnoreCase))
+        {
+            ExcludePatterns.Add(OverwriteBackup.FolderName);
+        }
     }
 
     public SyncOptions Clone() => new()
@@ -79,6 +93,7 @@ public sealed class SyncOptions
         UseTrashFolder = UseTrashFolder,
         VerifyAfterCopy = VerifyAfterCopy,
         SkipHiddenAndSystem = SkipHiddenAndSystem,
+        KeepOverwriteBackup = KeepOverwriteBackup,
         Concurrency = Concurrency,
         ConflictResolution = ConflictResolution,
         ExcludePatterns = [.. ExcludePatterns],

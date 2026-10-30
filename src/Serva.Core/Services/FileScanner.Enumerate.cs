@@ -84,38 +84,6 @@ public sealed partial class FileScanner
         return result;
     }
 
-    /// <summary>记录每个目录的最后写入时间（增量快照的有效性判据）。</summary>
-    private static Dictionary<string, long> CaptureDirectoryTimes(
-        string root,
-        List<(string Rel, string Full)> directories)
-    {
-        var map = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
-
-        foreach ((string rel, string full) in directories)
-        {
-            map[rel.Length == 0 ? string.Empty : rel] = SafeDirectoryWriteTime(full);
-        }
-
-        map[string.Empty] = SafeDirectoryWriteTime(root);
-        return map;
-    }
-
-    private static long SafeDirectoryWriteTime(string path)
-    {
-        try
-        {
-            return Directory.GetLastWriteTimeUtc(path).Ticks;
-        }
-        catch (IOException)
-        {
-            return 0;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return 0;
-        }
-    }
-
     private FileEntry? CreateEntry(FileInfo info, string relativePath, string fullPath)
     {
         try

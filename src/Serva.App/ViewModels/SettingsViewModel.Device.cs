@@ -51,6 +51,16 @@ public sealed partial class SettingsViewModel
         set => SetOption(value, _settings.Value.Options.SkipHiddenAndSystem, o => o.SkipHiddenAndSystem = value);
     }
 
+    /// <summary>
+    /// 覆盖前先把原件挪进同目录的隐藏目录 <c>.ServaUndoTemp</c>，撤销时可以还原。
+    /// 关闭后覆盖就是「直接盖掉」，撤销不再还原被覆盖的文件（界面会先弹红色确认框）。
+    /// </summary>
+    public bool KeepOverwriteBackup
+    {
+        get => _settings.Value.Options.KeepOverwriteBackup;
+        set => SetOption(value, _settings.Value.Options.KeepOverwriteBackup, o => o.KeepOverwriteBackup = value);
+    }
+
     public bool MirrorDelete
     {
         get => _settings.Value.Options.MirrorDelete;

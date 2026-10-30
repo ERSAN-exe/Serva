@@ -1,6 +1,7 @@
 using Microsoft.UI.Xaml;
 using Serva.App.Services;
 using Serva.App.ViewModels;
+using Serva.Core.Services;
 
 namespace Serva.App;
 
@@ -42,6 +43,11 @@ public partial class App : Application
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
         MainWindow = new MainWindow();
+
+        // 关闭软件时删掉本次运行保留的「覆盖前副本」（.ServaUndoTemp）——
+        // 撤销只在本次运行内有效。
+        MainWindow.Closed += (_, _) => OverwriteBackup.DeleteAll();
+
         MainWindow.Activate();
 
         // 启动时在后台检查新版本：不阻塞界面，失败静默（24 小时内不重复请求）。

@@ -14,6 +14,9 @@ public enum UndoActionKind
     /// <summary>撤销重命名：把文件改回原名。</summary>
     RenameBack,
 
+    /// <summary>撤销覆盖：把 <c>.ServaUndoTemp</c> 里的原件移回原位。</summary>
+    RestoreFromBackup,
+
     /// <summary>无法撤销（原始内容已被覆盖 / 直接删除 / 状态未知）。</summary>
     NotPossible,
 }
@@ -35,6 +38,7 @@ public sealed record UndoStep(
         UndoActionKind.DeleteCreatedFile => CoreText.Get("Delete files copied in this run", "删除本次复制的文件"),
         UndoActionKind.RestoreFromTrash => CoreText.Get("Move back from the recycle folder", "从回收目录移回"),
         UndoActionKind.RenameBack => CoreText.Get("Rename back", "改回原名"),
+        UndoActionKind.RestoreFromBackup => CoreText.Get("Restore the overwritten original", "还原被覆盖的原文件"),
         _ => Note ?? CoreText.Get("Cannot undo", "无法撤销"),
     };
 }

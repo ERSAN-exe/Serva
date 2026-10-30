@@ -1,11 +1,11 @@
 #define MyAppName "Serva"
 #ifndef MyAppVersion
-  #define MyAppVersion "0.2.1"
+  #define MyAppVersion "0.3.0"
 #endif
 #define MyAppPublisher "ERSAN-exe"
 #define MyAppExeName "Serva.exe"
 
-;#define BuildArch "ARM64"
+#define BuildArch "ARM64"
 #define BuildArch "x64"
 
 #if BuildArch == "ARM64"

@@ -105,7 +105,7 @@ public sealed partial class CompareViewModel
             await Task.Run(() =>
             {
                 var scanner = new FileScanner(
-                    matcher, options.SkipHiddenAndSystem, options.IncludeSubdirectories, _snapshotStore);
+                    matcher, options.SkipHiddenAndSystem, options.IncludeSubdirectories);
 
                 foreach (MappingState state in _states)
                 {

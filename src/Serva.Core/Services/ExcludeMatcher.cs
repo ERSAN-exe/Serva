@@ -33,6 +33,8 @@ public sealed class ExcludeMatcher
         "*.serva-part",
         // 第 14 条：写在移动设备根目录下的对应关系文件（隐藏文件），不能被同步或镜像删除。
         DeviceMappingStore.FileName,
+        // 第 15 条：覆盖前保留原件的临时目录（隐藏），既不能同步也不能被镜像删除。
+        OverwriteBackup.FolderName,
     ];
 
     private readonly Regex[] _exclude;

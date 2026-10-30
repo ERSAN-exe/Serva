@@ -105,18 +105,34 @@ public sealed partial class CompareViewModel
         }
     }
 
-    /// <summary>结果列表只显示有差异的项目（隐藏两端完全一致的行）。</summary>
-    public bool ShowOnlyDifferences
+    /// <summary>结果表的筛选方式（下拉菜单：显示所有有差异的 / 仅设备 / 仅本机 / 将删除的项目）。</summary>
+    public ResultFilter Filter
     {
-        get => _showOnlyDifferences;
+        get => _filter;
         set
         {
-            if (SetProperty(ref _showOnlyDifferences, value))
+            if (SetProperty(ref _filter, value))
             {
                 ApplyRows();
             }
         }
     }
+
+    /// <summary>与结果页下拉菜单的 <c>SelectedIndex</c> 双向绑定。</summary>
+    public int FilterIndex
+    {
+        get => (int)Filter;
+        set
+        {
+            if (value >= 0 && value <= (int)ResultFilter.Deletions)
+            {
+                Filter = (ResultFilter)value;
+            }
+        }
+    }
+
+    /// <summary>每次进入「比较结果」页都把筛选恢复成「显示所有」。</summary>
+    public void ResetFilter() => Filter = ResultFilter.Differences;
 
     /// <summary>过滤后列表是否还有行（没有时显示空态提示）。</summary>
     public bool HasVisibleRows => Rows.Count > 0;
@@ -190,4 +206,32 @@ public sealed partial class CompareViewModel
         get => _runningFailedText;
         private set => SetProperty(ref _runningFailedText, value);
     }
+}
+
+/// <summary>
+/// 结果表的筛选方式（结果页右上角的下拉菜单）。
+/// <para>顺序即下拉菜单顺序，<see cref="CompareViewModel.FilterIndex"/> 直接按它映射。</para>
+/// </summary>
+public enum ResultFilter
+{
+    /// <summary>显示所有有差异的项目（两端完全一致的仍然不显示）。</summary>
+    Differences,
+
+    /// <summary>本机更新：本机侧较新的文件。</summary>
+    LocalNewer,
+
+    /// <summary>设备更新：设备侧较新的文件。</summary>
+    DeviceNewer,
+
+    /// <summary>仅设备：设备上有、本机没有的文件。</summary>
+    DeviceOnly,
+
+    /// <summary>仅本机：本机有、设备上没有的文件。</summary>
+    LocalOnly,
+
+    /// <summary>将被覆盖：写入目标端时会盖掉已存在的文件。</summary>
+    Overwritten,
+
+    /// <summary>将删除的项目：镜像删除 / 覆盖时目标端多出来的文件。</summary>
+    Deletions,
 }

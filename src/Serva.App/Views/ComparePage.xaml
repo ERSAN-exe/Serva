@@ -205,9 +205,11 @@
                             </Grid>
 
                             <ListView
+                                x:Name="DeviceList"
                                 MaxHeight="200"
                                 ItemsSource="{x:Bind ViewModel.Devices}"
-                                SelectedItem="{x:Bind ViewModel.SelectedDevice, Mode=TwoWay}"
+                                SelectedItem="{x:Bind ViewModel.SelectedDevice, Mode=OneWay}"
+                                SelectionChanged="Device_SelectionChanged"
                                 SelectionMode="Single"
                                 IsItemClickEnabled="True"
                                 ItemClick="Device_ItemClick">

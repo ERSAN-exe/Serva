@@ -24,6 +24,12 @@ public enum JournalOperationKind
     /// （如「由 C: 移动到 E:（合并）」）。追加在末尾，避免改动旧日志里的枚举数值。
     /// </summary>
     Move,
+
+    /// <summary>
+    /// 覆盖前把原文件挪进同目录的隐藏目录 <c>.ServaUndoTemp</c>（撤销时据此还原）。
+    /// 追加在末尾，避免改动旧日志里的枚举数值。
+    /// </summary>
+    Backup,
 }
 
 /// <summary>
@@ -79,6 +85,12 @@ public sealed record JournalEntry(
     /// </summary>
     public IReadOnlyList<string>? CreatedDirectories { get; init; }
 
+    /// <summary>
+    /// 覆盖前原文件被挪到的临时副本路径（<c>.ServaUndoTemp</c>）；<c>null</c> 表示没有保留副本。
+    /// 有副本时，撤销可以安全地删除本次写入的文件，再由备份步骤把原件还原回去。
+    /// </summary>
+    public string? BackupPath { get; init; }
+
     public string KindText => Kind switch
     {
         JournalOperationKind.Copy => CoreText.Get("Copy", "复制"),
@@ -88,6 +100,7 @@ public sealed record JournalEntry(
         JournalOperationKind.Skip => CoreText.Get("Skip", "跳过"),
         JournalOperationKind.Undo => CoreText.Get("Undo", "撤销"),
         JournalOperationKind.Move => CoreText.Get("Move", "移动"),
+        JournalOperationKind.Backup => CoreText.Get("Backup", "备份"),
         _ => CoreText.Get("Error", "错误"),
     };
 
@@ -242,12 +255,14 @@ public sealed class Journal
         string? message = null,
         bool? overwritten = null,
         string? deviceLabel = null,
-        IReadOnlyList<string>? createdDirectories = null) =>
+        IReadOnlyList<string>? createdDirectories = null,
+        string? backupPath = null) =>
         Append(new JournalEntry(DateTime.UtcNow, kind, relativePath, sourcePath, targetPath, bytes, success, message)
         {
             Overwritten = overwritten,
             DeviceLabel = deviceLabel,
             CreatedDirectories = createdDirectories,
+            BackupPath = backupPath,
         });
 
     /// <summary>读取日志文件概要（次数 / 失败数 / 可撤销数）。</summary>

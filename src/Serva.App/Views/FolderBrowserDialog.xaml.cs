@@ -18,12 +18,12 @@ public enum FolderBrowserMode
     LocalDrives,
 }
 
-/// <summary>列表中的一项：驱动器的根路径或一个子目录。</summary>
+/// <summary>列表中的一项：驱动器的根路径、用户文件夹或一个子目录。</summary>
 public sealed record FolderEntry(
-    string FullPath, string Name, bool IsDrive, bool IsPinned = false, bool IsDesktop = false)
+    string FullPath, string Name, bool IsDrive, bool IsPinned = false, bool IsUserFolder = false)
 {
-    /// <summary>列表项图标：图钉=固定文件夹，桌面=桌面图标，盘符=硬盘，其余=文件夹。</summary>
-    public string Glyph => IsPinned ? "\uE840" : IsDesktop ? "\uE8FC" : IsDrive ? "\uEDA2" : "\uE8B7";
+    /// <summary>列表项图标：图钉=固定文件夹，用户文件夹=用户图标，盘符=硬盘，其余=文件夹。</summary>
+    public string Glyph => IsPinned ? "\uE840" : IsUserFolder ? "\uE77B" : IsDrive ? "\uEDA2" : "\uE8B7";
 }
 
 /// <summary>
@@ -136,11 +136,12 @@ public sealed partial class FolderBrowserDialog : ContentDialog
             _entries.Add(new FolderEntry(drive.RootPath, drive.DisplayName, true));
         }
 
-        // 桌面：紧跟盘符列表，点进去后可用「使用当前文件夹」直接选桌面。
-        string desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-        if (!string.IsNullOrEmpty(desktop) && Directory.Exists(desktop))
+        // 用户文件夹（C:\Users\<用户名>）：紧跟盘符列表 —— 下载 / 文档 / 图片 / 桌面都在里面，
+        // 点进去就能往下选，也能用「使用当前文件夹」直接把整个用户文件夹作为同步目录。
+        string userFolder = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (!string.IsNullOrEmpty(userFolder) && Directory.Exists(userFolder))
         {
-            _entries.Add(new FolderEntry(desktop, AppText.Current.DesktopFolder, false, IsDesktop: true));
+            _entries.Add(new FolderEntry(userFolder, AppText.Current.UserFolder, false, IsUserFolder: true));
         }
 
         // 设置里「固定」的本机文件夹：作为快捷入口排在最后，不挡在盘符前面。

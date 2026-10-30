@@ -43,10 +43,25 @@ public sealed partial class ComparePage : Page
     /// <summary>关闭「发现新版本」提示条：记住这个版本，之后不再重复提醒。</summary>
     private void UpdateNotice_CloseClick(InfoBar sender, object args) => ViewModel.DismissUpdateNotice();
 
-    /// <summary>点选设备：重新读取这台设备的对应关系（「重新扫描」清空后，点一下设备就能恢复）。</summary>
+    /// <summary>点选设备：重新读取这台设备的对应关系（对应关系跟着设备走）。</summary>
     private void Device_ItemClick(object sender, ItemClickEventArgs e)
     {
         if (e.ClickedItem is DeviceInfo device)
+        {
+            ViewModel.SelectDevice(device);
+        }
+    }
+
+    /// <summary>
+    /// 键盘 / 触控选择设备时同步给视图模型。
+    /// <para>
+    /// 只处理「选中了某一台」：列表重建（重新扫描 / 插入拔出）时 ListView 会先把自己清空，
+    /// 那不是用户的意图，忽略即可。选中项的单向绑定由视图模型负责，所以这里不回写 null。
+    /// </para>
+    /// </summary>
+    private void Device_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (DeviceList.SelectedItem is DeviceInfo device)
         {
             ViewModel.SelectDevice(device);
         }

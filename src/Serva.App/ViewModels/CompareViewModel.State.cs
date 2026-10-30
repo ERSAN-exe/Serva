@@ -15,8 +15,9 @@ public sealed partial class CompareViewModel
         get => _selectedDevice;
         set
         {
-            // 刷新设备列表时 ListView 会先把选中项清空（TwoWay 回写 <c>null</c>）：这是中间态，直接忽略，
+            // 刷新设备列表时 ListView 会先把自己清空并回写 <c>null</c>：这是中间态，直接忽略，
             // 否则「同一台设备重新扫描」会被误判成更换设备而清空配置。
+            // （选中项已改为单向绑定，正常路径不会再回写；这里只是兜底。）
             if (value is null && _isRefreshingDevices)
             {
                 return;
@@ -66,8 +67,7 @@ public sealed partial class CompareViewModel
             _settings.LastTargetIdentity = value.Identity;
             SaveSettings();
 
-            // 换了设备：解除「重新扫描」后的抑制，让新设备自己的对应关系恢复出来。
-            _suppressMappingRestore = false;
+            // 换了设备：读新设备自己根目录里的对应关系（上一台设备的配置留在它自己的文件里，不受影响）。
             RestoreMappings(value, knownIdentity, knownRoot);
 
             ResetResults(() => Mappings.Count > 0
@@ -135,7 +135,20 @@ public sealed partial class CompareViewModel
             }
 
             string conflicts = ConflictCount > 0
-                ? Text.F(" · {0} conflict(s) kept on both sides", " · {0} 项冲突保留双方", ConflictCount)
+                ? Action switch
+                {
+                    // 合并：两边都改过的文件保留较新版本（见 PlanBuilder.DecideConflict）。
+                    ResultAction.Merge => Text.F(
+                        " · {0} conflict(s): newer version wins",
+                        " · {0} 项冲突取较新版本",
+                        ConflictCount),
+
+                    // 覆盖：冲突文件直接以源端为准写过去。
+                    _ => Text.F(
+                        " · {0} conflict(s) overwritten",
+                        " · {0} 项冲突将被覆盖",
+                        ConflictCount),
+                }
                 : string.Empty;
 
             return Text.F(
@@ -233,10 +246,10 @@ public sealed partial class CompareViewModel
         _ => "\uE117",                                     // 双向（同步）
     };
 
-    /// <summary>「合并」的提示（蓝色）。</summary>
+    /// <summary>「合并」的提示（蓝色）：双向补充较新文件，两边都改过的取较新版本。</summary>
     public string MergeHintText => Text.T(
-        "Both sides fill in their newer files; files changed on both sides are kept as two versions.",
-        "两个方向互相补充较新的文件；两端都改过的文件保留双方。");
+        "Both sides fill in each other's newer files; files changed on both sides keep the newer version.",
+        "两个方向互相补充较新的文件；两边都修改过的文件保留较新版本。");
 
     /// <summary>「用本机内容覆盖设备」的提示（红色）；下一行是黑色说明 +「执行策略」按钮。</summary>
     public string OverwriteLocalHintText => Text.F(
@@ -244,10 +257,16 @@ public sealed partial class CompareViewModel
         "用本机硬盘（{0}）的内容覆盖设备。",
         LocalDriveText);
 
-    /// <summary>「用设备内容覆盖本机硬盘」的提示（红色）。</summary>
+    /// <summary>
+    /// 「用设备内容覆盖本机硬盘」的提示（红色）。
+    /// <para>
+    /// 不再写死「本机多出来的文件会被删除」：删不删、是否移入回收站由<strong>全局执行策略</strong>决定，
+    /// 下一行给出「执行策略」的跳转（与「覆盖设备」那句保持一致）。
+    /// </para>
+    /// </summary>
     public string OverwriteDeviceHintText => Text.F(
-        "Overwrite the local disk ({0}) with the contents of the device; extra local files will be deleted.",
-        "用设备的内容覆盖本机硬盘（{0}）；本机多出来的文件会被删除。",
+        "Overwrite the local disk ({0}) with the contents of the device.",
+        "用设备的内容覆盖本机硬盘（{0}）。",
         LocalDriveText);
 
     public Visibility MergeHintVisibility => Action == ResultAction.Merge ? Visibility.Visible : Visibility.Collapsed;
@@ -258,7 +277,10 @@ public sealed partial class CompareViewModel
     public Visibility OverwriteDeviceHintVisibility =>
         Action == ResultAction.OverwriteDeviceToLocal ? Visibility.Visible : Visibility.Collapsed;
 
-    /// <summary>当前处理方式对应的（同步模式, 是否强制覆盖）。</summary>
+    /// <summary>
+    /// 当前处理方式对应的（同步模式, 是否强制覆盖）。
+    /// <para>合并：两个方向互相补充较新的文件；两边都修改过的文件保留较新版本。</para>
+    /// </summary>
     internal (SyncMode Mode, bool Force) EffectivePlan => Action switch
     {
         ResultAction.OverwriteLocalToDevice => (SyncMode.BackupToDevice, true),

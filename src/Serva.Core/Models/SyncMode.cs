@@ -9,7 +9,7 @@ public enum SyncMode
     /// <summary>设备 → 本机：以设备为源，单向写入本机。</summary>
     DeviceToLocal,
 
-    /// <summary>双向同步：两侧较新的文件互相补充（冲突需人工处理）。</summary>
+    /// <summary>双向同步（合并）：两侧较新的文件互相补充；两边都改过的文件保留较新版本。</summary>
     TwoWay,
 
     /// <summary>仅比较：只生成计划，不写入任何数据。</summary>

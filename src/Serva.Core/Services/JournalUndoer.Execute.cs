@@ -57,6 +57,42 @@ public sealed partial class JournalUndoer
                         deleted++;
                         break;
 
+                    case UndoActionKind.RestoreFromBackup:
+                        if (!File.Exists(step.SourcePath))
+                        {
+                            skipped++;
+                            messages.Add(CoreText.Format(
+                                "{0}: the temporary copy of the overwritten file no longer exists, skipped",
+                                "{0}：覆盖前的临时副本已不存在，已跳过",
+                                step.RelativePath));
+                            OverwriteBackup.TryDeleteFolder(Path.GetDirectoryName(step.SourcePath));
+                            break;
+                        }
+
+                        if (File.Exists(step.TargetPath))
+                        {
+                            // 目标端已被再次改动：不覆盖现场，跳过还原。
+                            long backupSize = new FileInfo(step.SourcePath).Length;
+                            long actualSize = new FileInfo(step.TargetPath).Length;
+                            if (backupSize != actualSize)
+                            {
+                                skipped++;
+                                messages.Add(CoreText.Format(
+                                    "{0}: the target file changed again, the original was not restored",
+                                    "{0}：目标端文件已被再次改动，未还原原文件",
+                                    step.RelativePath));
+                                break;
+                            }
+                        }
+
+                        // 移回原位（同时删掉已经空的 .ServaUndoTemp 目录）。
+                        OverwriteBackup.Restore(step.SourcePath, step.TargetPath);
+                        journal?.Append(
+                            JournalOperationKind.Undo, step.RelativePath, step.SourcePath, step.TargetPath, step.Bytes, true,
+                            CoreText.Get("Undo: restore the overwritten original", "撤销：还原被覆盖的原文件"));
+                        restored++;
+                        break;
+
                     case UndoActionKind.RestoreFromTrash:
                         if (!File.Exists(step.TargetPath))
                         {
@@ -117,6 +153,9 @@ public sealed partial class JournalUndoer
 
         // 最后统一清理「本次运行新建、现在已空」的目录（含被跳过步骤的目录）。
         DeleteEmptyCreatedDirectories(plan);
+
+        // 还原过的原文件已经离开临时目录：顺手把空的 .ServaUndoTemp 一起删掉。
+        DeleteEmptyBackupFolders(plan);
 
         return new UndoResult
         {
@@ -181,6 +220,18 @@ public sealed partial class JournalUndoer
         if (!string.IsNullOrEmpty(directory))
         {
             Directory.CreateDirectory(directory);
+        }
+    }
+
+    /// <summary>撤销后删掉已经变空的 <c>.ServaUndoTemp</c> 目录（还有副本的目录保留）。</summary>
+    private static void DeleteEmptyBackupFolders(UndoPlan plan)
+    {
+        foreach (UndoStep step in plan.Steps)
+        {
+            if (step.Action == UndoActionKind.RestoreFromBackup)
+            {
+                OverwriteBackup.TryDeleteFolder(Path.GetDirectoryName(step.SourcePath));
+            }
         }
     }
 }

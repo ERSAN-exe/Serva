@@ -48,18 +48,16 @@ public sealed partial class CompareViewModel
         UpdateDerivedSummaries();
     }
 
-    /// <summary>把行装入结果表（按「只显示有差异项目」过滤后）。</summary>
+    /// <summary>把行装入结果表（按当前筛选方式过滤后）。</summary>
     private void ApplyRows()
     {
         Rows.Clear();
         foreach (CompareRowViewModel row in _allRows)
         {
-            if (_showOnlyDifferences && row.DisplayStatus == CompareStatus.Same)
+            if (MatchesFilter(row))
             {
-                continue;
+                Rows.Add(row);
             }
-
-            Rows.Add(row);
         }
 
         bool all = Rows.Count > 0 && Rows.All(static r => r.IsSelected);
@@ -74,6 +72,36 @@ public sealed partial class CompareViewModel
         OnPropertyChanged(nameof(RowCaptionText));
         OnPropertyChanged(nameof(HasResults));
     }
+
+    /// <summary>当前筛选方式是否包含该行（结果页右上角的下拉菜单）。</summary>
+    private bool MatchesFilter(CompareRowViewModel row) => _filter switch
+    {
+        // 显示所有：仍然隐藏两端完全一致的行。
+        ResultFilter.Differences => row.DisplayStatus != CompareStatus.Same,
+
+        // 本机更新 / 设备更新：两侧都改过、其中一侧较新。
+        ResultFilter.LocalNewer => row.DisplayStatus == CompareStatus.LeftNewer,
+        ResultFilter.DeviceNewer => row.DisplayStatus == CompareStatus.RightNewer,
+
+        // 仅设备：设备上有、本机没有。
+        ResultFilter.DeviceOnly => row.DisplayStatus == CompareStatus.RightOnly,
+
+        // 仅本机：本机有、设备上没有。
+        ResultFilter.LocalOnly => row.DisplayStatus == CompareStatus.LeftOnly,
+
+        // 将被覆盖：目标是「复制到某一侧」，而那一侧本来就有同名文件（会被新内容盖掉）。
+        ResultFilter.Overwritten => row.Model.Action switch
+        {
+            PlanAction.CopyToDevice => row.Model.Item.Right is not null,
+            PlanAction.CopyToLocal => row.Model.Item.Left is not null,
+            _ => false,
+        },
+
+        // 将删除：镜像删除 / 覆盖时目标端多出来的文件。
+        ResultFilter.Deletions => row.DisplayStatus == CompareStatus.Delete,
+
+        _ => true,
+    };
 
     /// <summary>丢弃所有扫描结果与计划。</summary>
     private void ResetMappingStates()
