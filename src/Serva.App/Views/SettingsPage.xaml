@@ -175,11 +175,6 @@
                     <TextBlock Style="{StaticResource ServaSectionTitle}" Text="{x:Bind Text.ActionPolicy, Mode=OneWay}" />
 
                     <ToggleSwitch
-                        IsOn="{x:Bind ViewModel.SkipHiddenAndSystem, Mode=TwoWay}"
-                        OffContent="{x:Bind Text.OptionSkipHiddenAndSystem, Mode=OneWay}"
-                        OnContent="{x:Bind Text.OptionSkipHiddenAndSystem, Mode=OneWay}" />
-
-                    <ToggleSwitch
                         IsOn="{x:Bind ViewModel.KeepOverwriteBackup, Mode=TwoWay}"
                         OffContent="{x:Bind Text.OptionKeepOverwriteBackup, Mode=OneWay}"
                         OnContent="{x:Bind Text.OptionKeepOverwriteBackup, Mode=OneWay}"
@@ -286,8 +281,9 @@
                     <StackPanel Orientation="Horizontal" Spacing="10">
                         <Button
                             VerticalAlignment="Center"
-                            Command="{x:Bind ViewModel.CheckUpdatesCommand}"
-                            Content="{x:Bind Text.CheckForUpdates, Mode=OneWay}" />
+                            Click="CheckUpdates_Click"
+                            Content="{x:Bind Text.CheckForUpdates, Mode=OneWay}"
+                            IsEnabled="{x:Bind ViewModel.CanCheckUpdate, Mode=OneWay}" />
                         <TextBlock
                             VerticalAlignment="Center"
                             FontSize="12"

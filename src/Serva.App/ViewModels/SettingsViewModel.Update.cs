@@ -27,17 +27,11 @@ public sealed partial class SettingsViewModel
         }
     }
 
-    /// <summary>「检查更新」按钮（检查期间自动禁用）。</summary>
-    public AsyncRelayCommand CheckUpdatesCommand { get; } =
-        new(() => UpdateService.Current.CheckAsync(manual: true));
-
-    /// <summary>「当前版本 0.2.0」。</summary>
+    /// <summary>「当前版本 0.3.0」。</summary>
     public string CurrentVersionText =>
         AppText.Current.F("Current version {0}", "当前版本 {0}", AppVersion.Current);
 
-    /// <summary>是否正在检查更新。</summary>
-    public bool IsCheckingUpdate => _updates.IsChecking;
-
+    /// <summary>检查期间「检查更新」按钮置灰。</summary>
     public bool CanCheckUpdate => !_updates.IsChecking;
 
     /// <summary>检查结果 / 进度的一行状态文字。</summary>
@@ -60,7 +54,6 @@ public sealed partial class SettingsViewModel
     /// <summary>更新状态变化后刷新本页绑定（由页面在 <c>Loaded</c> 期间订阅、<c>Unloaded</c> 时退订）。</summary>
     public void RefreshUpdateState()
     {
-        OnPropertyChanged(nameof(IsCheckingUpdate));
         OnPropertyChanged(nameof(CanCheckUpdate));
         OnPropertyChanged(nameof(UpdateStatusText));
         OnPropertyChanged(nameof(UpdateStatusVisibility));

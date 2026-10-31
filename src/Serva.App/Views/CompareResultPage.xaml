@@ -49,6 +49,23 @@
                     Text="{x:Bind StatusText}" />
             </Grid>
         </DataTemplate>
+
+        <!-- 执行动作 chip：与状态 chip 同一套样式，覆盖 / 删除用红色，新增复制用绿色 -->
+        <DataTemplate x:Key="ActionChipTemplate" x:DataType="vm:CompareRowViewModel">
+            <Grid HorizontalAlignment="Left" VerticalAlignment="Center">
+                <Border
+                    Background="{x:Bind ActionBadgeBrush}"
+                    CornerRadius="10"
+                    Opacity="0.16" />
+                <TextBlock
+                    Margin="8,2"
+                    FontSize="12"
+                    Foreground="{x:Bind ActionBadgeBrush}"
+                    Text="{x:Bind ActionBadgeText}"
+                    TextTrimming="CharacterEllipsis"
+                    ToolTipService.ToolTip="{x:Bind ActionText}" />
+            </Grid>
+        </DataTemplate>
     </Page.Resources>
 
     <Grid>
@@ -189,7 +206,7 @@
                         Grid.Row="1"
                         Padding="16,8"
                         Background="{ThemeResource SubtleFillColorSecondaryBrush}"
-                        ColumnDefinitions="34,*,56,128,84,100"
+                        ColumnDefinitions="34,*,56,128,84,110"
                         ColumnSpacing="8">
                         <CheckBox
                             Grid.Column="0"
@@ -231,7 +248,7 @@
                         SelectionMode="None">
                         <ListView.ItemTemplate>
                             <DataTemplate x:DataType="vm:CompareRowViewModel">
-                                <Grid ColumnDefinitions="34,*,56,128,84,100" ColumnSpacing="8">
+                                <Grid ColumnDefinitions="34,*,56,128,84,110" ColumnSpacing="8">
                                     <CheckBox
                                         Grid.Column="0"
                                         MinWidth="0"
@@ -261,12 +278,11 @@
                                         HorizontalContentAlignment="Left"
                                         Content="{x:Bind}"
                                         ContentTemplate="{StaticResource StatusChipTemplate}" />
-                                    <TextBlock
+                                    <ContentControl
                                         Grid.Column="5"
-                                        VerticalAlignment="Center"
-                                        FontSize="12"
-                                        Text="{x:Bind ActionText}"
-                                        TextTrimming="CharacterEllipsis" />
+                                        HorizontalContentAlignment="Left"
+                                        Content="{x:Bind}"
+                                        ContentTemplate="{StaticResource ActionChipTemplate}" />
                                 </Grid>
                             </DataTemplate>
                         </ListView.ItemTemplate>

@@ -5,6 +5,8 @@ using Serva.App.Localization;
 using Serva.App.Services;
 using Serva.App.ViewModels;
 using Serva.Core.Models;
+using Serva.Core.Services;
+using Windows.System;
 
 namespace Serva.App.Views;
 
@@ -172,6 +174,44 @@ public sealed partial class SettingsPage : Page
         toggle.IsOn = true;
         _suppressBackupToggle = false;
         ViewModel.KeepOverwriteBackup = true;
+    }
+
+    /// <summary>
+    /// 手动「检查更新」：只有用户主动点这个按钮时才弹窗提示；
+    /// 启动时的检查只更新主页上方的提示条（不打扰）。
+    /// </summary>
+    private async void CheckUpdates_Click(object sender, RoutedEventArgs e)
+    {
+        await UpdateService.Current.CheckAsync(manual: true);
+
+        UpdateService updates = UpdateService.Current;
+        if (!updates.HasUpdate || updates.LatestVersion is not { Length: > 0 } version)
+        {
+            return;
+        }
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            RequestedTheme = AppearanceService.CurrentElementTheme,
+            Title = AppText.Current.F("Update available: {0}", "发现新版本 {0}", version),
+            Content = new TextBlock
+            {
+                Text = AppText.Current.F(
+                    "A newer version is available (current version: {0}). Open the download page?",
+                    "有新版本可用（当前版本 {0}）。是否打开下载页面？",
+                    AppVersion.Current),
+                TextWrapping = TextWrapping.Wrap,
+            },
+            PrimaryButtonText = AppText.Current.OpenRelease,
+            CloseButtonText = AppText.Current.LaterNotNow,
+            DefaultButton = ContentDialogButton.Primary,
+        };
+
+        if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+        {
+            await Launcher.LaunchUriAsync(UpdateService.ReleasePageUri);
+        }
     }
 
     private void RemoveExcludeRule_Click(object sender, RoutedEventArgs e)

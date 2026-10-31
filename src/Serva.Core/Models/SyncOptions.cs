@@ -20,8 +20,10 @@ public sealed class SyncOptions
     /// <summary>复制后校验（比对源文件与目标文件的 SHA-256）。<strong>始终开启</strong>（界面不再提供开关）。</summary>
     public bool VerifyAfterCopy { get; set; } = true;
 
-    /// <summary>跳过隐藏 / 系统文件。</summary>
-    public bool SkipHiddenAndSystem { get; set; }
+    /// <summary>
+    /// 跳过隐藏 / 系统文件。<strong>始终开启</strong>（界面不再提供开关，见 <see cref="Normalize"/>）。
+    /// </summary>
+    public bool SkipHiddenAndSystem { get; set; } = true;
 
     /// <summary>
     /// 覆盖目标端已有文件前，先把原件挪进同目录的隐藏文件夹 <c>.ServaUndoTemp</c>，供撤销还原。
@@ -72,6 +74,9 @@ public sealed class SyncOptions
         // 设置页已移除这两个开关：旧设置文件里的 false 也要纠正过来。
         IncludeSubdirectories = true;
         VerifyAfterCopy = true;
+
+        // 「跳过隐藏和系统文件」同样改为始终开启（界面上已经没有这个开关）。
+        SkipHiddenAndSystem = true;
 
         // 设备根目录下的对应关系文件必须始终被排除，否则镜像删除会把配置一起删掉。
         if (!ExcludePatterns.Contains(DeviceMappingStore.FileName, StringComparer.OrdinalIgnoreCase))

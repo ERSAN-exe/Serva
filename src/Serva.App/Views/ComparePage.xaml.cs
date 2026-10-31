@@ -165,7 +165,8 @@ public sealed partial class ComparePage : Page
         // 2) 与它对应的本机文件夹（先选盘符，再进目录；设备所在的移动磁盘不出现在盘符列表里，避免把设备当成"本机盘"）。
         var localDialog = new FolderBrowserDialog(
             FolderBrowserMode.LocalDrives,
-            excludedDrives: [deviceRoot])
+            excludedDrives: [deviceRoot],
+            pairedFolder: deviceFolder)
         {
             XamlRoot = XamlRoot,
             RequestedTheme = AppearanceService.CurrentElementTheme,

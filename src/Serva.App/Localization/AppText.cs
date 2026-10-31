@@ -198,8 +198,6 @@ public sealed class AppText : INotifyPropertyChanged
 
     public string Refresh => T("Refresh", "刷新");
 
-    public string OptionSkipHiddenAndSystem => T("Skip hidden and system files", "跳过隐藏和系统文件");
-
     public string OptionAllowLocalDrives => T("Allow selecting local disks", "允许选择本机硬盘");
 
     public string OptionMirrorDelete => T("Delete extra files on the target", "删除目标端多余文件");
@@ -249,6 +247,9 @@ public sealed class AppText : INotifyPropertyChanged
 
     /// <summary>「查看更新」链接（打开 GitHub 上最新的 Release 页面）。</summary>
     public string OpenRelease => T("View release", "查看更新");
+
+    /// <summary>启动时「发现新版本」提示的关闭按钮。</summary>
+    public string LaterNotNow => T("Later", "稍后");
 
     // ============================ 对话框 ============================
 
@@ -312,9 +313,11 @@ public sealed class AppText : INotifyPropertyChanged
 
     public string UpOneLevel => T("Up one level", "上一级");
 
-    public string DeviceRootLabel => T("Device: ", "设备：");
+    /// <summary>文件夹选择对话框：上方「设备文件夹」的标题。</summary>
+    public string DeviceFolderLabel => T("Device folder", "设备文件夹");
 
-    public string DriveRootLabel => T("Drive: ", "驱动器：");
+    /// <summary>文件夹选择对话框：下方「本机文件夹」的标题。</summary>
+    public string LocalFolderLabel => T("Local folder", "本机文件夹");
 
     public string LocalDrivesCaption => T("Local drives", "本机驱动器");
 

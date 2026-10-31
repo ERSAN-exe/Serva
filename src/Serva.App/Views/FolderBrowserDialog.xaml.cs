@@ -20,10 +20,19 @@ public enum FolderBrowserMode
 
 /// <summary>列表中的一项：驱动器的根路径、用户文件夹或一个子目录。</summary>
 public sealed record FolderEntry(
-    string FullPath, string Name, bool IsDrive, bool IsPinned = false, bool IsUserFolder = false)
+    string FullPath,
+    string Name,
+    bool IsDrive,
+    bool IsPinned = false,
+    bool IsUserFolder = false,
+    string? CustomGlyph = null)
 {
-    /// <summary>列表项图标：图钉=固定文件夹，用户文件夹=用户图标，盘符=硬盘，其余=文件夹。</summary>
-    public string Glyph => IsPinned ? "\uE840" : IsUserFolder ? "\uE77B" : IsDrive ? "\uEDA2" : "\uE8B7";
+    /// <summary>
+    /// 列表项图标：自定义图标优先（桌面 / 文档 / 图片 / 音乐 / 视频 → 各自的图标），
+    /// 其次图钉=固定文件夹，用户文件夹=用户图标，盘符=硬盘，其余=文件夹。
+    /// </summary>
+    public string Glyph => CustomGlyph
+        ?? (IsPinned ? "\uE840" : IsUserFolder ? "\uE77B" : IsDrive ? "\uEDA2" : "\uE8B7");
 }
 
 /// <summary>
@@ -49,7 +58,8 @@ public sealed partial class FolderBrowserDialog : ContentDialog
         string? root = null,
         IEnumerable<string>? excludedDrives = null,
         bool showPinnedFolders = true,
-        DriveFilter driveFilter = DriveFilter.LocalDrives)
+        DriveFilter driveFilter = DriveFilter.LocalDrives,
+        string? pairedFolder = null)
     {
         InitializeComponent();
 
@@ -66,6 +76,14 @@ public sealed partial class FolderBrowserDialog : ContentDialog
         Title = mode == FolderBrowserMode.SingleRoot
             ? AppText.Current.ChooseDeviceFolder
             : AppText.Current.ChooseLocalFolder;
+
+        // 本机对话框：上方先列出「刚在设备上选好的文件夹」，中间用连接图标指向下面的本机路径。
+        if (!string.IsNullOrWhiteSpace(pairedFolder))
+        {
+            PairedText.Text = Normalize(pairedFolder);
+            PairedPanel.Visibility = Visibility.Visible;
+            LinkIcon.Visibility = Visibility.Visible;
+        }
 
         EntryList.ItemsSource = _entries;
         Load();
@@ -87,13 +105,12 @@ public sealed partial class FolderBrowserDialog : ContentDialog
             return;
         }
 
-        RootText.Text = _mode == FolderBrowserMode.SingleRoot
-            ? AppText.Current.DeviceRootLabel + _root
-            : AppText.Current.DriveRootLabel + (Path.GetPathRoot(_current) ?? _current);
+        CurrentLabel.Text = _mode == FolderBrowserMode.SingleRoot
+            ? AppText.Current.DeviceFolderLabel
+            : AppText.Current.LocalFolderLabel;
 
-        string baseRoot = _mode == FolderBrowserMode.SingleRoot ? _root : Path.GetPathRoot(_current) ?? _current;
-        string relative = Path.GetRelativePath(baseRoot, _current);
-        CurrentText.Text = relative == "." ? "\\" : "\\" + relative.Replace('/', '\\');
+        // 当前文件夹的完整路径：单独一行、自动换行（以前挤在按钮行里被省略号截断）。
+        CurrentText.Text = _current;
 
         UpButton.IsEnabled = true;
 
@@ -104,15 +121,33 @@ public sealed partial class FolderBrowserDialog : ContentDialog
 
         try
         {
-            foreach (string directory in Directory.EnumerateDirectories(_current)
-                         .OrderBy(static d => d, StringComparer.OrdinalIgnoreCase))
+            // 用户文件夹里：系统自带的 桌面 / 文档 / 下载 / 图片 / 音乐 / 视频 用各自的图标，并排在最前面。
+            Dictionary<string, (string Glyph, int Rank)> special = IsUserProfileRoot(_current)
+                ? BuildSpecialFolders()
+                : [];
+
+            var folders = new List<(FolderEntry Entry, int Rank)>();
+
+            foreach (string directory in Directory.EnumerateDirectories(_current))
             {
                 if (IsHiddenOrSystem(directory))
                 {
                     continue;
                 }
 
-                _entries.Add(new FolderEntry(directory, Path.GetFileName(directory), false));
+                string name = Path.GetFileName(directory);
+
+                folders.Add(special.TryGetValue(Path.TrimEndingDirectorySeparator(directory), out var known)
+                    ? (new FolderEntry(directory, name, false, CustomGlyph: known.Glyph), known.Rank)
+                    : (new FolderEntry(directory, name, false), int.MaxValue));
+            }
+
+            // 特殊文件夹按固定顺序排在最前面，其余按名称排序。
+            foreach ((FolderEntry entry, _) in folders
+                         .OrderBy(static f => f.Rank)
+                         .ThenBy(static f => f.Entry.Name, StringComparer.CurrentCultureIgnoreCase))
+            {
+                _entries.Add(entry);
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -160,7 +195,7 @@ public sealed partial class FolderBrowserDialog : ContentDialog
             _entries.Add(new FolderEntry(folder, PinnedName(folder), false, IsPinned: true));
         }
 
-        RootText.Text = AppText.Current.LocalDrivesCaption;
+        CurrentLabel.Text = AppText.Current.LocalDrivesCaption;
         CurrentText.Text = AppText.Current.ChooseDrivePrompt;
         UpButton.IsEnabled = false;
         BackToDrivesButton.Visibility = Visibility.Collapsed;
@@ -244,8 +279,70 @@ public sealed partial class FolderBrowserDialog : ContentDialog
             : Path.TrimEndingDirectorySeparator(root).ToUpperInvariant();
     }
 
+    /// <summary>
+    /// 用户文件夹里系统自带的「特殊文件夹」→ 图标 + 排序优先级。
+    /// <para>
+    /// 用<strong>解析后的真实路径</strong>比对：这些文件夹可能被重定向（OneDrive）或使用本地化名称，
+    /// 不能按名字硬匹配。图标取自 Segoe MDL2 Assets（与本对话框其它图标同一套字体）。
+    /// </para>
+    /// </summary>
+    private static readonly (Environment.SpecialFolder Folder, string Glyph, int Rank)[] SpecialFolders =
+    [
+        (Environment.SpecialFolder.Desktop, "\uE8FC", 0),       // 桌面
+        (Environment.SpecialFolder.MyDocuments, "\uE8A5", 2),   // 文档
+        (Environment.SpecialFolder.MyPictures, "\uE8B9", 3),    // 图片
+        (Environment.SpecialFolder.MyMusic, "\uE8D6", 4),       // 音乐
+        (Environment.SpecialFolder.MyVideos, "\uE714", 5),      // 视频
+    ];
+
+    /// <summary>当前路径是不是「用户文件夹」本身（只有在这一层才换图标、排到前面）。</summary>
+    private static bool IsUserProfileRoot(string? path)
+    {
+        string userFolder = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+        return !string.IsNullOrEmpty(userFolder)
+               && !string.IsNullOrEmpty(path)
+               && string.Equals(
+                   Path.TrimEndingDirectorySeparator(path),
+                   Path.TrimEndingDirectorySeparator(userFolder),
+                   StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// 特殊文件夹的完整路径 →（图标, 排序优先级）。
+    /// 「下载」在 .NET 里没有对应的 <see cref="Environment.SpecialFolder"/>，按用户文件夹拼出来。
+    /// </summary>
+    private static Dictionary<string, (string Glyph, int Rank)> BuildSpecialFolders()
+    {
+        var map = new Dictionary<string, (string Glyph, int Rank)>(StringComparer.OrdinalIgnoreCase);
+
+        foreach ((Environment.SpecialFolder folder, string glyph, int rank) in SpecialFolders)
+        {
+            string path = Environment.GetFolderPath(folder);
+            if (!string.IsNullOrEmpty(path))
+            {
+                map[Path.TrimEndingDirectorySeparator(path)] = (glyph, rank);
+            }
+        }
+
+        string userFolder = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (!string.IsNullOrEmpty(userFolder))
+        {
+            map[Path.Combine(userFolder, "Downloads")] = ("\uE896", 1);
+        }
+
+        return map;
+    }
+
     private static bool IsHiddenOrSystem(string directory)
     {
+        // 以点开头的目录（.git / .vs / .ServaUndoTemp …）：FAT / exFAT 上不一定带隐藏属性，
+        // 按名字再挡一次，保证「选择文件夹」时看不到这些隐藏文件夹。
+        if (Path.GetFileName(directory).StartsWith('.'))
+        {
+            return true;
+        }
+
         try
         {
             FileAttributes attributes = File.GetAttributes(directory);

@@ -16,17 +16,52 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
+        <!-- 上方：这次在设备上选好的文件夹（方便对照，只有本机对话框会显示） -->
+        <StackPanel x:Name="PairedPanel" Spacing="2" Visibility="Collapsed">
+            <TextBlock
+                FontSize="12"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Text="{x:Bind Text.DeviceFolderLabel, Mode=OneWay}" />
+            <TextBlock
+                x:Name="PairedText"
+                FontSize="13"
+                IsTextSelectionEnabled="True"
+                TextWrapping="Wrap" />
+        </StackPanel>
+
+        <!-- 中间行：两端的连接图标 -->
+        <FontIcon
+            x:Name="LinkIcon"
+            Grid.Row="1"
+            FontSize="14"
+            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+            Glyph="&#xE71B;"
+            Visibility="Collapsed" />
+
+        <!-- 下方：当前文件夹（标题 + 完整路径另起一行，路径自动换行不再截断） -->
         <TextBlock
-            x:Name="RootText"
+            x:Name="CurrentLabel"
+            Grid.Row="2"
             FontSize="12"
             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
             TextWrapping="Wrap" />
 
+        <TextBlock
+            x:Name="CurrentText"
+            Grid.Row="3"
+            FontSize="13"
+            FontWeight="SemiBold"
+            IsTextSelectionEnabled="True"
+            TextWrapping="Wrap" />
+
         <Grid
-            Grid.Row="1"
+            Grid.Row="4"
             ColumnSpacing="8">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
@@ -64,18 +99,10 @@
                     <TextBlock Text="{x:Bind Text.Refresh, Mode=OneWay}" />
                 </StackPanel>
             </Button>
-
-            <TextBlock
-                x:Name="CurrentText"
-                Grid.Column="3"
-                VerticalAlignment="Center"
-                FontSize="13"
-                FontWeight="SemiBold"
-                TextTrimming="CharacterEllipsis" />
         </Grid>
 
         <Border
-            Grid.Row="2"
+            Grid.Row="5"
             MinHeight="200"
             MaxHeight="300"
             Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"

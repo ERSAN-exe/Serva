@@ -111,6 +111,50 @@ public sealed class CompareRowViewModel : ObservableObject
 
     public string ActionText => Model.ActionText;
 
+    /// <summary>
+    /// 「将执行」列的徽章文案：目标端已有同名文件时用「覆盖到本机 / 覆盖到设备」，
+    /// 新增文件用「复制到本机 / 复制到设备」，删除等其它动作沿用计划里的说明。
+    /// </summary>
+    public string ActionBadgeText
+    {
+        get
+        {
+            AppText text = AppText.Current;
+            bool targetExists = Model.Action switch
+            {
+                PlanAction.CopyToLocal => Model.Item.Left is not null,
+                PlanAction.CopyToDevice => Model.Item.Right is not null,
+                _ => false,
+            };
+
+            return Model.Action switch
+            {
+                PlanAction.CopyToLocal => targetExists
+                    ? text.T("Overwrite → local", "覆盖到本机")
+                    : text.T("Copy → local", "复制到本机"),
+                PlanAction.CopyToDevice => targetExists
+                    ? text.T("Overwrite → device", "覆盖到设备")
+                    : text.T("Copy → device", "复制到设备"),
+                _ => Model.ActionText,
+            };
+        }
+    }
+
+    /// <summary>徽章颜色：覆盖 / 删除用红色（与「冲突 / 将删除」同一套语义色），新增复制用绿色，其余中性灰。</summary>
+    public Brush ActionBadgeBrush => Model.Action switch
+    {
+        PlanAction.CopyToLocal when Model.Item.Left is not null => Resource("ServaStatusDeleteBrush"),
+        PlanAction.CopyToDevice when Model.Item.Right is not null => Resource("ServaStatusDeleteBrush"),
+        PlanAction.CopyToLocal or PlanAction.CopyToDevice => Resource("ServaStatusLeftOnlyBrush"),
+        PlanAction.DeleteOnLocal or PlanAction.DeleteOnDevice => Resource("ServaStatusDeleteBrush"),
+        _ => Resource("ServaStatusSameBrush"),
+    };
+
+    private static Brush Resource(string key) =>
+        Application.Current.Resources.TryGetValue(key, out object? value) && value is Brush brush
+            ? brush
+            : new SolidColorBrush(Microsoft.UI.Colors.Gray);
+
     internal static string DriveOf(string path)
     {
         string? root = Path.GetPathRoot(path);

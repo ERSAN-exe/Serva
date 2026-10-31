@@ -45,18 +45,8 @@ public sealed partial class MainWindow : Window
         // 避免漏掉 UISettings 的变更通知（例如从「设置」应用改完主题再切回来）。
         Activated += OnWindowActivated;
 
-        // 有新版时给「设置」导航项挂一个小红点。
-        UpdateService.Current.Changed += OnUpdateChanged;
-        RefreshUpdateBadge();
-
         SelectInitialPage();
     }
-
-    /// <summary>「设置」导航项上的更新小红点（有新版才显示）。</summary>
-    private void RefreshUpdateBadge() =>
-        SettingsNavItem.InfoBadge = UpdateService.Current.HasUpdate ? new InfoBadge { Value = 1 } : null;
-
-    private void OnUpdateChanged(object? sender, EventArgs e) => RefreshUpdateBadge();
 
     /// <summary>
     /// 窗口重新回到前台：按当前的系统明暗再对齐一次外观。

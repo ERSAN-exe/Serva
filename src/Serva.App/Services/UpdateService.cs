@@ -8,8 +8,9 @@ namespace Serva.App.Services;
 /// <summary>
 /// 版本更新提醒。
 /// <para>
-/// 每次启动都在后台检查一次（几分钟内反复启动只查一次），发现更新的正式版本时通过
-/// <see cref="Changed"/> 通知界面：比较页顶部的提示条、「设置」页的更新卡片、导航项上的小红点。
+/// <strong>每次启动</strong>都在后台检查一次（并发保护：上一次还没结束时不会再发请求），
+/// 发现更新的正式版本时通过 <see cref="Changed"/> 通知界面：启动时的弹窗提示、
+/// 比较页顶部的提示条、「设置」页的更新卡片、导航项上的小红点。
 /// </para>
 /// <para>
 /// 上次查到的版本号会随设置一起保存，因此打开软件后即使还没联网，也能立刻显示「发现新版本」。
@@ -21,12 +22,6 @@ namespace Serva.App.Services;
 /// </summary>
 public sealed class UpdateService : INotifyPropertyChanged
 {
-    /// <summary>
-    /// 启动检查的节流：只防「几秒内被反复拉起」（例如安装完成后连续点开），
-    /// 不再按天计 —— 否则发布新版本后重启软件，好几天都看不到提示。
-    /// </summary>
-    private static readonly TimeSpan StartupCheckInterval = TimeSpan.FromMinutes(5);
-
     private readonly UpdateChecker _checker;
 
     private bool _isChecking;
@@ -138,8 +133,8 @@ public sealed class UpdateService : INotifyPropertyChanged
     public bool HasStatus => !string.IsNullOrEmpty(StatusText);
 
     /// <summary>
-    /// 检查更新。<paramref name="manual"/> = <see langword="true"/> 时跳过节流与「启动时检查」开关。
-    /// <para>失败只记录状态，不抛异常、不弹窗。</para>
+    /// 检查更新。<paramref name="manual"/> = <see langword="true"/> 时跳过「启动时检查」开关。
+    /// <para>每次启动都会调用一次；失败只记录状态，不抛异常、不弹窗。</para>
     /// </summary>
     public async Task CheckAsync(bool manual)
     {
@@ -150,17 +145,9 @@ public sealed class UpdateService : INotifyPropertyChanged
 
         AppSettings settings = SettingsService.Current.Value;
 
-        if (!manual)
+        if (!manual && !settings.CheckUpdatesOnStartup)
         {
-            if (!settings.CheckUpdatesOnStartup)
-            {
-                return;
-            }
-
-            if (settings.LastUpdateCheckUtc is { } last && DateTimeOffset.UtcNow - last < StartupCheckInterval)
-            {
-                return;
-            }
+            return;
         }
 
         IsChecking = true;
