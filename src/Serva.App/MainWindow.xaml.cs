@@ -235,20 +235,6 @@ public sealed partial class MainWindow : Window
         _ => typeof(ComparePage),
     };
 
-    /// <summary>
-    /// 供其它页面调用：切换到「设置」页（同时同步 NavigationView 的选中项）。
-    /// 例如比较结果页里的「执行策略」链接。
-    /// </summary>
-    public void NavigateToSettings()
-    {
-        NavView.SelectedItem = NavView.MenuItems[1];
-
-        if (ContentFrame.CurrentSourcePageType != typeof(SettingsPage))
-        {
-            ContentFrame.Navigate(typeof(SettingsPage), null, new EntranceNavigationTransitionInfo());
-        }
-    }
-
     private void ConfigureTitleBar()
     {
         AppWindowTitleBar titleBar = AppWindow.TitleBar;

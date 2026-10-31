@@ -100,6 +100,9 @@ public sealed class AppText : INotifyPropertyChanged
 
     public string LogSearchPlaceholder => T("Search by file name", "搜索文件名");
 
+    /// <summary>结果表右上角搜索框的占位提示。</summary>
+    public string SearchFileNamePlaceholder => T("Search by file name", "搜索文件名");
+
     public string ClearLog => T("Clear log", "清除日志");
 
     public string ClearLogTooltip => T("Delete all logs", "删除全部日志");
@@ -129,8 +132,6 @@ public sealed class AppText : INotifyPropertyChanged
     public string ActionOverwriteLocal => T("Overwrite local disk", "覆盖本机硬盘");
 
     public string ActionPolicy => T("Action policy", "执行策略");
-
-    public string OpenSettingsTooltip => T("Open the settings page", "打开设置页面");
 
     /// <summary>结果表筛选下拉菜单：显示所有（两端完全一致的仍不显示）。</summary>
     public string FilterAll => T("Show all", "显示所有");

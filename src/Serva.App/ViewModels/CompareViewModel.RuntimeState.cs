@@ -131,8 +131,30 @@ public sealed partial class CompareViewModel
         }
     }
 
-    /// <summary>每次进入「比较结果」页都把筛选恢复成「显示所有」。</summary>
-    public void ResetFilter() => Filter = ResultFilter.Differences;
+    /// <summary>结果页右上角的「搜索文件名」（与筛选下拉菜单叠加生效）。</summary>
+    public string SearchText
+    {
+        get => _searchText;
+        set
+        {
+            string text = value ?? string.Empty;
+
+            if (!SetProperty(ref _searchText, text))
+            {
+                return;
+            }
+
+            _searchQuery = text.Trim();
+            ApplyRows();
+        }
+    }
+
+    /// <summary>每次进入「比较结果」页：筛选恢复「显示所有」，搜索框一并清空。</summary>
+    public void ResetFilter()
+    {
+        Filter = ResultFilter.Differences;
+        SearchText = string.Empty;
+    }
 
     /// <summary>过滤后列表是否还有行（没有时显示空态提示）。</summary>
     public bool HasVisibleRows => Rows.Count > 0;

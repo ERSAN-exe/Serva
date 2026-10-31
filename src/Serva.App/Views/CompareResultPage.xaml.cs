@@ -72,7 +72,4 @@ public sealed partial class CompareResultPage : Page
 
         Frame.Navigate(typeof(ComparePage));
     }
-
-    /// <summary>「执行策略」按钮：跳到设置页面，让用户查看 / 修改全局执行策略。</summary>
-    private void OpenSettings_Click(object sender, RoutedEventArgs e) => App.MainWindow?.NavigateToSettings();
 }

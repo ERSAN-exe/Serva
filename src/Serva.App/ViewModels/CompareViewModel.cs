@@ -38,6 +38,12 @@ public sealed partial class CompareViewModel : ObservableObject, IDisposable
     private bool _isAllSelected = true;
     private ResultFilter _filter = ResultFilter.Differences;
 
+    /// <summary>结果表搜索框里的原文。</summary>
+    private string _searchText = string.Empty;
+
+    /// <summary>去空白后的搜索词（空串表示不搜索）。</summary>
+    private string _searchQuery = string.Empty;
+
     /// <summary>与设置页<strong>共享</strong>的同一份设置实例。</summary>
     private static AppSettings _settings => SettingsService.Current.Value;
 

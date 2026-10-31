@@ -73,8 +73,15 @@ public sealed partial class CompareViewModel
         OnPropertyChanged(nameof(HasResults));
     }
 
-    /// <summary>当前筛选方式是否包含该行（结果页右上角的下拉菜单）。</summary>
-    private bool MatchesFilter(CompareRowViewModel row) => _filter switch
+    /// <summary>当前筛选方式是否包含该行（筛选下拉菜单 + 文件名搜索，两者叠加）。</summary>
+    private bool MatchesFilter(CompareRowViewModel row) => MatchesKind(row) && MatchesSearch(row);
+
+    /// <summary>搜索词是否命中该行（匹配文件相对路径，不区分大小写；空搜索词视为全部命中）。</summary>
+    private bool MatchesSearch(CompareRowViewModel row) => _searchQuery.Length == 0
+        || row.RelativePath.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>筛选下拉菜单是否包含该行。</summary>
+    private bool MatchesKind(CompareRowViewModel row) => _filter switch
     {
         // 显示所有：仍然隐藏两端完全一致的行。
         ResultFilter.Differences => row.DisplayStatus != CompareStatus.Same,
