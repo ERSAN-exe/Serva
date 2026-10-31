@@ -30,10 +30,47 @@ public sealed partial class CompareResultPage : Page
 
     private void Back_Click(object sender, RoutedEventArgs e) => GoBack();
 
-    /// <summary>开始执行：随即回到比较页查看进度与日志。</summary>
+    /// <summary>开始执行：先确认执行方式与文件数，随即回到比较页查看进度与日志。</summary>
     private async void Start_Click(object sender, RoutedEventArgs e)
     {
         if (!ViewModel.CanStart)
+        {
+            return;
+        }
+
+        // 执行前确认：当前处理方式 + 逐个动作的文件数（整块明细用小号浅灰）。
+        var content = new StackPanel { Spacing = 6 };
+        content.Children.Add(new TextBlock
+        {
+            Text = AppText.Current.F(
+                "Run with \"{0}\"?",
+                "是否以「{0}」执行操作？",
+                ViewModel.ActionDisplayName),
+            TextWrapping = TextWrapping.Wrap,
+        });
+
+        content.Children.Add(StatusPresentation.MutedNote(ViewModel.RunSummaryTotalText));
+
+        var details = new StackPanel { Spacing = 2, Margin = new Thickness(12, 0, 0, 0) };
+        foreach (string line in ViewModel.RunSummaryLines())
+        {
+            details.Children.Add(StatusPresentation.MutedNote(line));
+        }
+
+        content.Children.Add(details);
+
+        var confirm = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            RequestedTheme = AppearanceService.CurrentElementTheme,
+            Title = AppText.Current.T("Confirm before running", "执行前确认"),
+            Content = content,
+            PrimaryButtonText = AppText.Current.StartRun,
+            CloseButtonText = AppText.Current.Cancel,
+            DefaultButton = ContentDialogButton.Primary,
+        };
+
+        if (await confirm.ShowAsync() != ContentDialogResult.Primary)
         {
             return;
         }

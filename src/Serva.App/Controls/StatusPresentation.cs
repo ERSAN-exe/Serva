@@ -54,6 +54,15 @@ internal static class StatusPresentation
         TextWrapping = TextWrapping.Wrap,
     };
 
+    /// <summary>弹窗里的次要说明文字：小号、浅灰（跟随主题）。</summary>
+    public static TextBlock MutedNote(string text) => new()
+    {
+        Text = text,
+        FontSize = 12,
+        Foreground = Resource("TextFillColorSecondaryBrush"),
+        TextWrapping = TextWrapping.Wrap,
+    };
+
     private static Brush Resource(string key) =>
         Application.Current.Resources.TryGetValue(key, out object? value) && value is Brush brush
             ? brush

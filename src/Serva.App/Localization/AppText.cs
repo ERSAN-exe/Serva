@@ -220,8 +220,6 @@ public sealed class AppText : INotifyPropertyChanged
 
     public string AddAsInclude => T("Add as include", "添加为仅包含");
 
-    public string RestoreDefaultRules => T("Restore default rules", "恢复默认规则");
-
     // ============================ 固定文件夹 ============================
 
     public string PinnedFoldersSection => T("Pinned folders", "固定文件夹");

@@ -6,6 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:models="using:Serva.Core.Models"
+    xmlns:vm="using:Serva.App.ViewModels"
     mc:Ignorable="d"
     Background="Transparent">
 
@@ -40,20 +41,29 @@
             </Border>
         </DataTemplate>
 
-        <DataTemplate x:Key="ExcludeRuleTemplate" x:DataType="x:String">
+        <DataTemplate x:Key="ExcludeRuleTemplate" x:DataType="vm:ExcludeRuleViewModel">
             <Border
                 Margin="0,0,8,8"
                 Padding="10,4"
                 Background="{ThemeResource SubtleFillColorSecondaryBrush}"
                 CornerRadius="12">
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                    <TextBlock VerticalAlignment="Center" FontSize="12" Text="{x:Bind}" />
+                    <TextBlock VerticalAlignment="Center" FontSize="12" Text="{x:Bind Pattern}" />
+                    <!-- 内置规则：锁形标记，不提供删除按钮 -->
+                    <FontIcon
+                        VerticalAlignment="Center"
+                        FontSize="11"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Glyph="&#xE72E;"
+                        ToolTipService.ToolTip="{x:Bind BuiltInTooltip}"
+                        Visibility="{x:Bind BuiltInBadgeVisibility}" />
                     <Button
                         Padding="0"
                         Background="Transparent"
                         BorderThickness="0"
                         Click="RemoveExcludeRule_Click"
-                        Tag="{x:Bind}">
+                        Tag="{x:Bind}"
+                        Visibility="{x:Bind RemoveButtonVisibility}">
                         <FontIcon FontSize="12" Glyph="&#xE711;" />
                     </Button>
                 </StackPanel>
@@ -239,10 +249,6 @@
                             Command="{x:Bind ViewModel.AddIncludeRuleCommand}"
                             Content="{x:Bind Text.AddAsInclude, Mode=OneWay}" />
                     </Grid>
-
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <Button Command="{x:Bind ViewModel.RestoreDefaultRulesCommand}" Content="{x:Bind Text.RestoreDefaultRules, Mode=OneWay}" />
-                    </StackPanel>
                 </StackPanel>
             </Border>
 

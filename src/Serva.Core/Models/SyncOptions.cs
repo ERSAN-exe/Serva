@@ -78,16 +78,14 @@ public sealed class SyncOptions
         // 「跳过隐藏和系统文件」同样改为始终开启（界面上已经没有这个开关）。
         SkipHiddenAndSystem = true;
 
-        // 设备根目录下的对应关系文件必须始终被排除，否则镜像删除会把配置一起删掉。
-        if (!ExcludePatterns.Contains(DeviceMappingStore.FileName, StringComparer.OrdinalIgnoreCase))
+        // 内置排除规则一律不可删除：旧设置文件里缺的条目在这里补回来
+        // （对应关系文件、覆盖前副本目录也在默认规则里，所以下面两块不用再单独处理）。
+        foreach (string rule in ExcludeMatcher.DefaultExcludePatterns)
         {
-            ExcludePatterns.Add(DeviceMappingStore.FileName);
-        }
-
-        // 覆盖前的临时副本目录同理：既不能被同步，也不能被镜像删除。
-        if (!ExcludePatterns.Contains(OverwriteBackup.FolderName, StringComparer.OrdinalIgnoreCase))
-        {
-            ExcludePatterns.Add(OverwriteBackup.FolderName);
+            if (!ExcludePatterns.Contains(rule, StringComparer.OrdinalIgnoreCase))
+            {
+                ExcludePatterns.Add(rule);
+            }
         }
     }
 

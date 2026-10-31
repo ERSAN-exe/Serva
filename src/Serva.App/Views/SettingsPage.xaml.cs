@@ -216,9 +216,9 @@ public sealed partial class SettingsPage : Page
 
     private void RemoveExcludeRule_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is FrameworkElement { Tag: string rule })
+        if (sender is FrameworkElement { Tag: ExcludeRuleViewModel rule })
         {
-            ViewModel.RemoveExcludeRuleCommand.Execute(rule);
+            ViewModel.RemoveExcludeRuleCommand.Execute(rule.Pattern);
         }
     }
 

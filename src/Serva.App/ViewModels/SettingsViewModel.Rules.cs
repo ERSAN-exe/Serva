@@ -20,7 +20,10 @@ public sealed partial class SettingsViewModel
         ExcludeRules.Clear();
         foreach (string rule in _settings.Value.Options.ExcludePatterns)
         {
-            ExcludeRules.Add(rule);
+            bool isBuiltIn = ExcludeMatcher.DefaultExcludePatterns
+                .Contains(rule, StringComparer.OrdinalIgnoreCase);
+
+            ExcludeRules.Add(new ExcludeRuleViewModel(rule, isBuiltIn));
         }
 
         IncludeRules.Clear();
@@ -66,6 +69,18 @@ public sealed partial class SettingsViewModel
             return;
         }
 
+        // 内置排除规则不可删除（界面上也不给删除按钮，这里再兜一层）。
+        if (!isInclude && ExcludeMatcher.DefaultExcludePatterns.Contains(rule, StringComparer.OrdinalIgnoreCase))
+        {
+            SetStatus(
+                () => AppText.Current.F(
+                    "Built-in rule \"{0}\" cannot be removed.",
+                    "内置规则「{0}」不可删除。",
+                    rule),
+                isError: true);
+            return;
+        }
+
         List<string> target = isInclude
             ? _settings.Value.Options.IncludePatterns
             : _settings.Value.Options.ExcludePatterns;
@@ -78,17 +93,5 @@ public sealed partial class SettingsViewModel
         RebuildRuleLists();
         Save();
         SetStatus(() => AppText.Current.F("Removed: {0}", "已移除：{0}", rule));
-    }
-
-    private void RestoreDefaultRules()
-    {
-        _settings.Value.Options.ExcludePatterns = [.. ExcludeMatcher.DefaultExcludePatterns];
-        _settings.Value.Options.IncludePatterns = [];
-        RebuildRuleLists();
-        Save();
-        SetStatus(() => AppText.Current.F(
-            "Restored {0} built-in exclude rule(s).",
-            "已恢复内置的 {0} 条排除规则。",
-            ExcludeMatcher.DefaultExcludePatterns.Count));
     }
 }

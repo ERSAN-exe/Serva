@@ -298,6 +298,49 @@ public sealed partial class CompareViewModel
         _ => Text.T("Merge", "合并"),
     };
 
+    /// <summary>当前选择的执行方式（与选项文字一致），用于「执行前确认」弹窗。</summary>
+    public string ActionDisplayName => Action switch
+    {
+        ResultAction.OverwriteLocalToDevice => Text.T("Overwrite device", "覆盖设备"),
+        ResultAction.OverwriteDeviceToLocal => Text.T("Overwrite local disk", "覆盖本机硬盘"),
+        _ => Text.T("Merge", "合并"),
+    };
+
+    /// <summary>
+    /// 「执行前确认」弹窗里的动作统计（总数 / 复制到本机 / 复制到设备 / 覆盖设备 / 覆盖本机 / 删除 / 不执行）。
+    /// </summary>
+    internal PlanActionCounts RunSummary => PlanActionCounts.From(_plan);
+
+    /// <summary>「执行前确认」弹窗的第一行：「将对 N 个文件进行操作：」。</summary>
+    public string RunSummaryTotalText =>
+        Text.F("{0} file(s) will be processed:", "将对 {0} 个文件进行操作：", RunSummary.Total);
+
+    /// <summary>
+    /// 「执行前确认」弹窗里的逐行统计（小号浅灰）。数量为 0 的行不显示。
+    /// </summary>
+    public IReadOnlyList<string> RunSummaryLines()
+    {
+        PlanActionCounts summary = RunSummary;
+        var lines = new List<string>();
+
+        AddLine(summary.CopyToLocal, "{0} file(s) will be copied to the local disk", "{0} 个文件将被复制到本机");
+        AddLine(summary.CopyToDevice, "{0} file(s) will be copied to the device", "{0} 个文件将被复制到设备");
+        AddLine(summary.OverwriteOnDevice, "{0} file(s) on the device will be overwritten", "{0} 个设备上的文件将被覆盖");
+        AddLine(summary.OverwriteOnLocal, "{0} file(s) on the local disk will be overwritten", "{0} 个本机上的文件将被覆盖");
+        AddLine(summary.Delete, "{0} file(s) will be deleted", "{0} 个文件将被删除");
+        AddLine(summary.Skip, "{0} file(s) will be left untouched", "{0} 个文件不会执行操作");
+
+        return lines;
+
+        void AddLine(int count, string english, string chinese)
+        {
+            if (count > 0)
+            {
+                lines.Add(Text.F(english, chinese, count));
+            }
+        }
+    }
+
     public int ConflictCount => _plan?.CountOf(CompareStatus.Conflict) ?? 0;
 
     public bool HasResults => _plan is not null;

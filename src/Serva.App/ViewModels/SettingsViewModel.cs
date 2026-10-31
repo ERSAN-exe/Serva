@@ -30,7 +30,6 @@ public sealed partial class SettingsViewModel : ObservableObject
         AddIncludeRuleCommand = new RelayCommand(() => AddRule(isInclude: true), () => CanAddRule);
         RemoveExcludeRuleCommand = new RelayCommand<string>(rule => RemoveRule(rule, isInclude: false));
         RemoveIncludeRuleCommand = new RelayCommand<string>(rule => RemoveRule(rule, isInclude: true));
-        RestoreDefaultRulesCommand = new RelayCommand(RestoreDefaultRules);
         RefreshDevicesCommand = new RelayCommand(RefreshDevices);
 
         ReloadFromSettings();
@@ -40,7 +39,8 @@ public sealed partial class SettingsViewModel : ObservableObject
     /// <summary>当前连接的移动存储设备（只读展示）。</summary>
     public ObservableCollection<DeviceInfo> Devices { get; }
 
-    public ObservableCollection<string> ExcludeRules { get; }
+    /// <summary>排除规则（内置规则带「不可删除」标记）。</summary>
+    public ObservableCollection<ExcludeRuleViewModel> ExcludeRules { get; }
 
     public ObservableCollection<string> IncludeRules { get; }
 
@@ -51,8 +51,6 @@ public sealed partial class SettingsViewModel : ObservableObject
     public RelayCommand<string> RemoveExcludeRuleCommand { get; }
 
     public RelayCommand<string> RemoveIncludeRuleCommand { get; }
-
-    public RelayCommand RestoreDefaultRulesCommand { get; }
 
     public RelayCommand RefreshDevicesCommand { get; }
 
