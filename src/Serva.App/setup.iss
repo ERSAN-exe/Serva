@@ -5,7 +5,7 @@
 #define MyAppPublisher "ERSAN-exe"
 #define MyAppExeName "Serva.exe"
 
-#define BuildArch "ARM64"
+;#define BuildArch "ARM64"
 #define BuildArch "x64"
 
 #if BuildArch == "ARM64"
