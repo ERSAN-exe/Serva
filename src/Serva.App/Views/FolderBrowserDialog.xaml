@@ -19,6 +19,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
@@ -101,8 +102,17 @@
             </Button>
         </Grid>
 
-        <Border
+        <!-- 当前文件夹不能选（系统盘根目录 / 系统文件夹）：说明原因 -->
+        <TextBlock
+            x:Name="BlockedText"
             Grid.Row="5"
+            FontSize="12"
+            Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+            TextWrapping="Wrap"
+            Visibility="Collapsed" />
+
+        <Border
+            Grid.Row="6"
             MinHeight="200"
             MaxHeight="300"
             Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"

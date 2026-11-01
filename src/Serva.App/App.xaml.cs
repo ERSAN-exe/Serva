@@ -42,6 +42,14 @@ public partial class App : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
+        // 只允许一个实例：两个进程同时跑会抢同一个设置文件、日志与设备。
+        // 第二个实例在激活已有窗口后直接退出（见 SingleInstance）。
+        if (!SingleInstance.TryAcquire())
+        {
+            Exit();
+            return;
+        }
+
         MainWindow = new MainWindow();
 
         // 关闭软件时删掉本次运行保留的「覆盖前副本」（.ServaUndoTemp）——

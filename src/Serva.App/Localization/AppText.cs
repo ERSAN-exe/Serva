@@ -88,11 +88,19 @@ public sealed class AppText : INotifyPropertyChanged
 
     public string RunQueued => T("Queued", "队列中");
 
-    public string RunSkipped => T("Skipped (in use / access denied)", "跳过（占用 / 权限）");
+    public string RunSkipped => T("Skipped", "跳过");
+
+    /// <summary>「跳过」统计块的悬停说明（格子太窄，原因放在提示里）。</summary>
+    public string RunSkippedTooltip => T(
+        "Files skipped because they were in use or access was denied.",
+        "因文件被占用或没有权限而跳过的文件。");
 
     public string RunFailed => T("Failed", "失败");
 
     public string CancelRun => T("Stop", "取消执行");
+
+    /// <summary>执行期间「正在执行」弹窗的标题。</summary>
+    public string RunningTitle => T("Running", "正在执行");
 
     // ============================ 日志 ============================
 
@@ -166,6 +174,9 @@ public sealed class AppText : INotifyPropertyChanged
 
     public string EmptyRows => T("No items match the filter.", "没有符合条件的项目。");
 
+    /// <summary>「开始执行」前的核对：文件很多时扫描要几十秒，用一个弹窗说明正在比对。</summary>
+    public string ComparingFilesTitle => T("Comparing files", "正在比对文件");
+
     public string Cancel => T("Cancel", "取消");
 
     public string StartRun => T("Start", "开始执行");
@@ -200,6 +211,11 @@ public sealed class AppText : INotifyPropertyChanged
     public string Refresh => T("Refresh", "刷新");
 
     public string OptionAllowLocalDrives => T("Allow selecting local disks", "允许选择本机硬盘");
+
+    /// <summary>设置页：允许同时用两块可移动设备（一块做目标，另一块做本机来源）。</summary>
+    public string OptionAllowTwoRemovableDevices => T(
+        "Allow two removable devices at once",
+        "允许同时选择两个移动设备");
 
     public string OptionMirrorDelete => T("Delete extra files on the target", "删除目标端多余文件");
 
@@ -318,10 +334,46 @@ public sealed class AppText : INotifyPropertyChanged
     /// <summary>文件夹选择对话框：下方「本机文件夹」的标题。</summary>
     public string LocalFolderLabel => T("Local folder", "本机文件夹");
 
-    public string LocalDrivesCaption => T("Local drives", "本机驱动器");
+    /// <summary>盘符列表页的标题：列表里可能同时有本机硬盘与其它可移动设备。</summary>
+    public string LocalDrivesCaption => T("Drives", "驱动器");
 
     public string ChooseDrivePrompt => T("Select a drive to open", "请选择要进入的驱动器");
 
     /// <summary>文件夹选择页里的快捷入口：当前用户的文件夹（<c>C:\Users\&lt;用户名&gt;</c>）。</summary>
     public string UserFolder => T("User folder", "用户文件夹");
+
+    /// <summary>不允许选择系统盘根目录（如 <c>C:\</c>）时的说明。</summary>
+    public string ProtectedSystemDriveRoot => T(
+        "The system drive root can't be used. Pick a folder inside it instead.",
+        "不能选择系统盘根目录，请选择它里面的具体文件夹。");
+
+    /// <summary>不允许选择系统文件夹（Windows / Program Files / 回收站 …）时的说明。</summary>
+    public string ProtectedSystemFolder => T(
+        "System folders can't be used as a sync folder.",
+        "系统文件夹不能作为同步目录。");
+
+    /// <summary>在设备上选了设备根目录时的警告标题。</summary>
+    public string DeviceRootWarningTitle => T("You picked the device root", "你选择了设备根目录");
+
+    /// <summary>在设备上选了设备根目录时的警告正文（<paramref name="deviceRoot"/> = 设备根目录）。</summary>
+    public string DeviceRootWarningBody(string deviceRoot) => F(
+        "Everything on {0} will take part in the sync, not just one backup folder — other files on the device may be overwritten or deleted. A dedicated folder on the device is safer.",
+        "整块设备（{0}）都会参与同步，不只是某个备份文件夹；设备上的其它文件可能被覆盖或删除。建议先在设备上新建一个专用文件夹。",
+        deviceRoot);
+
+    /// <summary>本机来源选了某个硬盘根目录时的警告标题。</summary>
+    public string RootFolderWarningTitle => T("You picked a drive root", "你选择了磁盘根目录");
+
+    /// <summary>本机来源选了某个硬盘根目录时的警告正文。</summary>
+    public string LocalRootWarningBody(string localRoot) => F(
+        "Everything on {0} will take part in the sync, not just one folder — other files on that drive may be read or deleted. A dedicated folder is safer.",
+        "整块本机磁盘（{0}）都会参与同步，不只是某个文件夹；那块盘上的其它文件可能被读取或删除。建议另建一个专用文件夹。",
+        localRoot);
+
+    /// <summary>设备与本机来源<strong>都</strong>选了根目录时的警告正文（两个盘符都要点明）。</summary>
+    public string BothRootsWarningBody(string deviceRoot, string localRoot) => F(
+        "Both {0} and {1} will take part in the sync as a whole — everything else on them may be overwritten or deleted. Please pick real folders instead of drive roots.",
+        "设备（{0}）与本机磁盘（{1}）两块盘都会整块参与同步，上面的其它文件可能被覆盖或删除。建议两边都选择具体的文件夹，而不是磁盘根目录。",
+        deviceRoot,
+        localRoot);
 }

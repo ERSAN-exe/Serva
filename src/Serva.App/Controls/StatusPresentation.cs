@@ -9,18 +9,34 @@ namespace Serva.App.Controls;
 /// <summary>把 <see cref="CompareStatus"/> 映射为界面文案与颜色。</summary>
 internal static class StatusPresentation
 {
-    /// <summary>状态文案。<paramref name="leftLabel"/> / <paramref name="rightLabel"/> 为对应关系两侧的盘符。</summary>
-    public static string Text(CompareStatus status, string? leftLabel = null, string? rightLabel = null)
+    /// <summary>
+    /// 状态文案。<paramref name="leftLabel"/> / <paramref name="rightLabel"/> 为对应关系两侧的盘符。
+    /// <para>
+    /// <paramref name="useDriveNames"/> = 两侧同类（都在移动设备 / 都在本机硬盘）：
+    /// 「仅本机 / 仅设备」此时分不清是哪一块盘，改用「仅 D: / 仅 G:」。
+    /// </para>
+    /// </summary>
+    public static string Text(
+        CompareStatus status,
+        string? leftLabel = null,
+        string? rightLabel = null,
+        bool useDriveNames = false)
     {
         AppText text = AppText.Current;
+        string left = leftLabel ?? text.T("Local", "本机");
+        string right = rightLabel ?? text.T("Device", "设备");
 
         return status switch
         {
             CompareStatus.Same => text.T("Same", "相同"),
-            CompareStatus.LeftOnly => text.T("Local only", "仅本机"),
-            CompareStatus.RightOnly => text.T("Device only", "仅设备"),
-            CompareStatus.LeftNewer => text.F("{0} is newer", "{0} 较新", leftLabel ?? text.T("Local", "本机")),
-            CompareStatus.RightNewer => text.F("{0} is newer", "{0} 较新", rightLabel ?? text.T("Device", "设备")),
+            CompareStatus.LeftOnly => useDriveNames
+                ? text.F("{0} only", "仅 {0}", left)
+                : text.T("Local only", "仅本机"),
+            CompareStatus.RightOnly => useDriveNames
+                ? text.F("{0} only", "仅 {0}", right)
+                : text.T("Device only", "仅设备"),
+            CompareStatus.LeftNewer => text.F("{0} is newer", "{0} 较新", left),
+            CompareStatus.RightNewer => text.F("{0} is newer", "{0} 较新", right),
             CompareStatus.Conflict => text.T("Conflict", "冲突"),
             CompareStatus.Delete => text.T("Will delete", "将删除"),
             _ => status.ToString(),

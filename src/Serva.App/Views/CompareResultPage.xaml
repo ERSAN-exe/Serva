@@ -118,9 +118,9 @@
 
                     <!-- 选项（放在盘符卡片下方） -->
                     <RadioButtons MaxColumns="3" SelectedIndex="{x:Bind ViewModel.ActionIndex, Mode=TwoWay}">
-                        <RadioButton AutomationProperties.Name="{x:Bind Text.ActionMerge, Mode=OneWay}" Content="{x:Bind Text.ActionMerge, Mode=OneWay}" />
-                        <RadioButton AutomationProperties.Name="{x:Bind Text.ActionOverwriteDevice, Mode=OneWay}" Content="{x:Bind Text.ActionOverwriteDevice, Mode=OneWay}" />
-                        <RadioButton AutomationProperties.Name="{x:Bind Text.ActionOverwriteLocal, Mode=OneWay}" Content="{x:Bind Text.ActionOverwriteLocal, Mode=OneWay}" />
+                        <RadioButton AutomationProperties.Name="{x:Bind ViewModel.MergeOptionText, Mode=OneWay}" Content="{x:Bind ViewModel.MergeOptionText, Mode=OneWay}" />
+                        <RadioButton AutomationProperties.Name="{x:Bind ViewModel.OverwriteDeviceOptionText, Mode=OneWay}" Content="{x:Bind ViewModel.OverwriteDeviceOptionText, Mode=OneWay}" />
+                        <RadioButton AutomationProperties.Name="{x:Bind ViewModel.OverwriteLocalOptionText, Mode=OneWay}" Content="{x:Bind ViewModel.OverwriteLocalOptionText, Mode=OneWay}" />
                     </RadioButtons>
 
                     <!-- 提示：合并为蓝色 -->
@@ -189,10 +189,10 @@
                             MinWidth="170"
                             SelectedIndex="{x:Bind ViewModel.FilterIndex, Mode=TwoWay}">
                             <ComboBoxItem Content="{x:Bind Text.FilterAll, Mode=OneWay}" />
-                            <ComboBoxItem Content="{x:Bind Text.FilterLocalNewer, Mode=OneWay}" />
-                            <ComboBoxItem Content="{x:Bind Text.FilterDeviceNewer, Mode=OneWay}" />
-                            <ComboBoxItem Content="{x:Bind Text.FilterDeviceOnly, Mode=OneWay}" />
-                            <ComboBoxItem Content="{x:Bind Text.FilterLocalOnly, Mode=OneWay}" />
+                            <ComboBoxItem Content="{x:Bind ViewModel.FilterLocalNewerText, Mode=OneWay}" />
+                            <ComboBoxItem Content="{x:Bind ViewModel.FilterDeviceNewerText, Mode=OneWay}" />
+                            <ComboBoxItem Content="{x:Bind ViewModel.FilterDeviceOnlyText, Mode=OneWay}" />
+                            <ComboBoxItem Content="{x:Bind ViewModel.FilterLocalOnlyText, Mode=OneWay}" />
                             <ComboBoxItem Content="{x:Bind Text.FilterOverwritten, Mode=OneWay}" />
                             <ComboBoxItem Content="{x:Bind Text.FilterDeletions, Mode=OneWay}" />
                         </ComboBox>

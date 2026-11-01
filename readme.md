@@ -28,22 +28,12 @@
 
 Serva is a lightweight, high-performance folder comparison and file synchronization desktop application designed natively for Windows 10 and Windows 11. Built on top of WinUI 3 and .NET 10, Serva provides a clean, fluent interface to help you effortlessly compare directories, preview synchronization plans, and keep your local folders and external drives in sync.
 
-## Features:
-
-- **Smart Directory Comparison:** Quickly scan and compare folders to identify added, modified, or deleted files with clear scan summaries.
-
-- **Safe Sync Preview:** Review detailed action plans before executing changes, ensuring no accidental data loss.
-
-- **External Drive Ready:** Seamlessly monitor and synchronize data with USB flash drives and external hard drives.
-
-- **Fluent Design:** Features a responsive WinUI 3 interface
-
-- **x64 & ARM64 Support:** Optimized for both traditional Intel/AMD PCs and Windows on ARM devices.
-
 # Screenshots
 
 <img src="screenshots/main.png" alt="mainpage">
+<img src="screenshots/mapping.png" alt="mapping">
 <img src="screenshots/result.png" alt="resultpage">
+<img src="screenshots/process.png" alt="processing">
 
 # Start
 

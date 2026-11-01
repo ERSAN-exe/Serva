@@ -71,6 +71,15 @@ public sealed partial class FileScanner
                     continue;
                 }
 
+                // 隐藏 / 系统目录整棵子树跳过：目录被隐藏时，里面的文件在资源管理器里同样是隐藏的，
+                // 只过滤「自身带隐藏属性」的文件会漏掉它们（.git、各种应用缓存目录等）。
+                // 以点开头的目录（.git / .vs / .vscode …）在 exFAT / FAT 上不一定带隐藏属性，
+                // 按名字再挡一次 —— 与「选择文件夹」对话框里的判定保持一致。
+                if (_skipHiddenAndSystem && (name.StartsWith('.') || IsHiddenOrSystem(child)))
+                {
+                    continue;
+                }
+
                 if (!_includeSubdirectories)
                 {
                     continue;
@@ -110,6 +119,23 @@ public sealed partial class FileScanner
         try
         {
             return (File.GetAttributes(directory) & FileAttributes.ReparsePoint) != 0;
+        }
+        catch (IOException)
+        {
+            return true;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return true;
+        }
+    }
+
+    /// <summary>目录本身是否带「隐藏」或「系统」属性（读不到属性时按隐藏处理，宁可不扫描）。</summary>
+    private static bool IsHiddenOrSystem(string directory)
+    {
+        try
+        {
+            return (File.GetAttributes(directory) & (FileAttributes.Hidden | FileAttributes.System)) != 0;
         }
         catch (IOException)
         {

@@ -12,6 +12,15 @@ public sealed class AppSettings
     public string Language { get; set; } = "system";
 
     /// <summary>
+    /// 是否允许同时选择两个可移动设备（一块作为同步目标，另一块作为本机来源）。
+    /// <para>
+    /// 打开时「选择本机文件夹」的盘符列表里会多出<strong>其它</strong>可移动设备
+    /// （当前选中的目标设备始终排除）；关闭后只列本机硬盘。
+    /// </para>
+    /// </summary>
+    public bool AllowTwoRemovableDevices { get; set; } = true;
+
+    /// <summary>
     /// 是否允许把本机硬盘（<strong>不含系统盘</strong>）也当作同步目标。
     /// 默认关闭：设备列表里只显示 U 盘 / 移动硬盘。
     /// </summary>
@@ -20,7 +29,16 @@ public sealed class AppSettings
     /// <summary>执行策略与排除规则。</summary>
     public SyncOptions Options { get; set; } = new();
 
-    /// <summary>「本机文件夹 ↔ 设备文件夹」对应关系（用于启动时恢复）。</summary>
+    /// <summary>
+    /// 按设备分开保存的对应关系（键见 <see cref="DeviceInfo.StorageKey"/>）。
+    /// <para>多设备时只读写当前选中的那一台，切换设备不会互相影响。</para>
+    /// </summary>
+    public List<DeviceMappingsSetting> DeviceMappings { get; set; } = [];
+
+    /// <summary>
+    /// 旧版本设置文件里的「全局」对应关系列表：启动时会被搬进 <see cref="DeviceMappings"/>
+    /// （见 <c>SettingsStore</c>），之后不再使用。
+    /// </summary>
     public List<MappingSetting> Mappings { get; set; } = [];
 
     /// <summary>上次使用的目标设备根路径。</summary>
@@ -55,12 +73,73 @@ public sealed class AppSettings
     /// </summary>
     public List<string> PinnedFolders { get; set; } = [];
 
+    /// <summary>
+    /// 取这台设备保存过的对应关系；<c>false</c> 表示本机还没有这台设备的记录
+    /// （此时才应该去读设备根目录里的文件）。
+    /// </summary>
+    public bool TryGetMappingsForDevice(DeviceInfo device, out IReadOnlyList<MappingSetting> mappings)
+    {
+        DeviceMappingsSetting? entry = FindDeviceEntry(device);
+        mappings = entry?.Mappings ?? [];
+        return entry is not null;
+    }
+
+    /// <summary>
+    /// 写入这台设备的对应关系（空列表也会保留一条空记录，见 <see cref="DeviceMappingsSetting.Mappings"/>）。
+    /// </summary>
+    public void SetMappingsForDevice(DeviceInfo device, IEnumerable<MappingSetting> mappings)
+    {
+        // 同一台设备只留一段：清掉键不同、但身份相同的旧段（旧版本只写硬件 ID）。
+        DeviceMappings.RemoveAll(
+            entry => !string.Equals(entry.DeviceKey, device.StorageKey, StringComparison.OrdinalIgnoreCase)
+                     && entry.DeviceKey.Length > 0
+                     && device.MatchesIdentity(entry.DeviceKey));
+
+        SetMappingsForDevice(device.StorageKey, device.RootPath, device.VolumeLabel, mappings);
+    }
+
+    /// <summary>按设备键写入对应关系（迁移旧设置时用）。</summary>
+    public void SetMappingsForDevice(
+        string deviceKey,
+        string rootPath,
+        string? volumeLabel,
+        IEnumerable<MappingSetting> mappings)
+    {
+        DeviceMappingsSetting? entry = DeviceMappings.FirstOrDefault(
+            item => string.Equals(item.DeviceKey, deviceKey, StringComparison.OrdinalIgnoreCase));
+
+        if (entry is null)
+        {
+            entry = new DeviceMappingsSetting { DeviceKey = deviceKey };
+            DeviceMappings.Add(entry);
+        }
+
+        entry.RootPath = rootPath;
+        entry.VolumeLabel = volumeLabel;
+        entry.SavedAt = DateTimeOffset.UtcNow;
+        entry.Mappings = [.. mappings.Select(static m => m.Clone())];
+    }
+
+    /// <summary>
+    /// 找这台设备的记录：先按键精确匹配，再按设备身份兜底（旧版本键里没有卷序列号）。
+    /// </summary>
+    private DeviceMappingsSetting? FindDeviceEntry(DeviceInfo device)
+    {
+        DeviceMappingsSetting? exact = DeviceMappings.FirstOrDefault(
+            entry => string.Equals(entry.DeviceKey, device.StorageKey, StringComparison.OrdinalIgnoreCase));
+
+        return exact ?? DeviceMappings.FirstOrDefault(
+            entry => entry.DeviceKey.Length > 0 && device.MatchesIdentity(entry.DeviceKey));
+    }
+
     public AppSettings Clone() => new()
     {
         Theme = Theme,
         Language = Language,
         AllowLocalDrives = AllowLocalDrives,
+        AllowTwoRemovableDevices = AllowTwoRemovableDevices,
         Options = Options.Clone(),
+        DeviceMappings = [.. DeviceMappings.Select(static d => d.Clone())],
         Mappings = [.. Mappings.Select(static m => m.Clone())],
         LastTargetRoot = LastTargetRoot,
         LastTargetIdentity = LastTargetIdentity,

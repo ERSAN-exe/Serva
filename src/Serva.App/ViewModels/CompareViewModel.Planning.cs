@@ -34,7 +34,8 @@ public sealed partial class CompareViewModel
 
             foreach (PlanItem item in state.Plan.Items)
             {
-                var row = new CompareRowViewModel(item, state.Mapping);
+                // 两侧同类（都在移动设备 / 都在本机硬盘）时，动作徽章直接用盘符说目标端。
+                var row = new CompareRowViewModel(item, state.Mapping, useDriveNames: SameKindSides);
                 row.SelectionChanged += OnRowSelectionChanged;
                 _allRows.Add(row);
             }

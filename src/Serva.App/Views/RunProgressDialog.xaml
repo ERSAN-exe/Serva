@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentDialog
+    x:Class="Serva.App.Views.RunProgressDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="{x:Bind Text.RunningTitle, Mode=OneWay}"
+    CloseButtonText="{x:Bind Text.CancelRun, Mode=OneWay}"
+    DefaultButton="Close">
+
+    <StackPanel Width="460" Spacing="14">
+        <Grid ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <ProgressRing
+                Width="44"
+                Height="44"
+                IsActive="True"
+                Value="{x:Bind ViewModel.RunningPercent, Mode=OneWay}" />
+            <StackPanel
+                Grid.Column="1"
+                VerticalAlignment="Center"
+                Spacing="2">
+                <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="{x:Bind ViewModel.RunningCountText, Mode=OneWay}" />
+                <TextBlock
+                    FontSize="12"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="{x:Bind ViewModel.RunningDetailText, Mode=OneWay}" />
+            </StackPanel>
+        </Grid>
+
+        <ProgressBar Maximum="100" Value="{x:Bind ViewModel.RunningPercent, Mode=OneWay}" />
+
+        <TextBlock
+            FontSize="12"
+            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+            Text="{x:Bind ViewModel.RunningCurrentFile, Mode=OneWay}"
+            TextTrimming="CharacterEllipsis" />
+
+        <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="12">
+            <Border Padding="12" Style="{StaticResource ServaCard}">
+                <StackPanel Spacing="2">
+                    <TextBlock FontSize="18" FontWeight="SemiBold" Text="{x:Bind ViewModel.RunningCompletedText, Mode=OneWay}" />
+                    <TextBlock
+                        FontSize="11"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="{x:Bind Text.RunCompleted, Mode=OneWay}"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="1" Padding="12" Style="{StaticResource ServaCard}">
+                <StackPanel Spacing="2">
+                    <TextBlock FontSize="18" FontWeight="SemiBold" Text="{x:Bind ViewModel.RunningQueuedText, Mode=OneWay}" />
+                    <TextBlock
+                        FontSize="11"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="{x:Bind Text.RunQueued, Mode=OneWay}"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+            <Border
+                Grid.Column="2"
+                Padding="12"
+                Style="{StaticResource ServaCard}"
+                ToolTipService.ToolTip="{x:Bind Text.RunSkippedTooltip, Mode=OneWay}">
+                <StackPanel Spacing="2">
+                    <TextBlock FontSize="18" FontWeight="SemiBold" Text="{x:Bind ViewModel.RunningSkippedText, Mode=OneWay}" />
+                    <TextBlock
+                        FontSize="11"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="{x:Bind Text.RunSkipped, Mode=OneWay}"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="3" Padding="12" Style="{StaticResource ServaCard}">
+                <StackPanel Spacing="2">
+                    <TextBlock
+                        FontSize="18"
+                        FontWeight="SemiBold"
+                        Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                        Text="{x:Bind ViewModel.RunningFailedText, Mode=OneWay}" />
+                    <TextBlock
+                        FontSize="11"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="{x:Bind Text.RunFailed, Mode=OneWay}"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+        </Grid>
+    </StackPanel>
+</ContentDialog>

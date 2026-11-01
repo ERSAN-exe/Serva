@@ -27,7 +27,7 @@ public sealed partial class SettingsViewModel
         }
     }
 
-    /// <summary>「当前版本 0.3.0」。</summary>
+    /// <summary>「当前版本 0.3.3」—— 版本号取自程序集（见 <see cref="AppVersion"/>）。</summary>
     public string CurrentVersionText =>
         AppText.Current.F("Current version {0}", "当前版本 {0}", AppVersion.Current);
 

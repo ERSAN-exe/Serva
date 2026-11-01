@@ -119,10 +119,10 @@ public sealed partial class CompareViewModel
         {
             // 列表本身没变，但界面上的对应关系可能还是空的（设备刚挂载时设备文件还没读到、
             // 或上一次读取因为设备忙而失败）：每次轮询顺手再读一次 ——
-            // 读不到东西不会有副作用（不会写设备文件），读到了就把配置补上。
+            // 读不到东西不会有副作用（不会写别的设备的文件），读到了就把配置补上。
             if (_selectedDevice is { } stale && Mappings.Count == 0)
             {
-                RestoreMappings(stale, _settings.LastTargetIdentity, _settings.LastTargetRoot);
+                RestoreMappings(stale);
             }
 
             return;
@@ -170,13 +170,16 @@ public sealed partial class CompareViewModel
         {
             SelectedDevice = FindDevice(devices, previousIdentity, previousRoot);
 
-            // 只有重新接入「上次使用的那台设备」（身份一致）时才沿用本机设置里的对应关系；
-            // 设备自己根目录里的 .serva-mappings.json 则由 SelectedDevice 的 setter 负责读取。
             if (_selectedDevice is { } current)
             {
-                RestoreMappings(current, lastKnownIdentity, lastKnownRoot);
+                RestoreMappings(current);
             }
         }
+
+        // 列表重建会清掉 ListView 的选中项（SelectedItem 是单向绑定）：设备本身没变时
+        // SetProperty 认为没变化、不会再通知，于是左边看起来「没选中」、右边却还显示着对应关系。
+        // 所以这里无条件再通知一次，让左边和视图模型始终一致。
+        OnPropertyChanged(nameof(SelectedDevice));
 
         UpdateDeviceBanner(devices);
 
@@ -222,32 +225,43 @@ public sealed partial class CompareViewModel
         // 用户主动选择设备：结束「重新扫描」后的清空状态，读回这台设备的配置。
         _mappingsClearedByRescan = false;
 
-        if (!ReferenceEquals(_selectedDevice, device))
+        // 同一个卷重新点一次（列表重建后常见）：SelectedDevice 不会变，但界面上的列表
+        // 可能被清空过，所以要显式确认一次归属。
+        if (!ReferenceEquals(_selectedDevice, device) || !device.IsSameVolume(_selectedDevice))
         {
             SelectedDevice = device;
+        }
+        else
+        {
+            OnPropertyChanged(nameof(SelectedDevice));
         }
 
         if (_selectedDevice is { } current)
         {
-            RestoreMappings(current, _settings.LastTargetIdentity, _settings.LastTargetRoot);
+            RestoreMappings(current);
         }
 
         OnPropertyChanged(nameof(MappingSummary));
         OnPropertyChanged(nameof(CanScan));
         RaiseMappingPanelState();
     }
-    /// <summary>优先按设备身份匹配（换了盘符也能找回），其次按盘符匹配，最后退回第一台设备。</summary>
+
+    /// <summary>
+    /// 从新枚举出的设备里找回「原来那台」：优先按设备身份匹配（换了盘符也能找回）；
+    /// 身份信息缺失的旧设置才退回按盘符匹配。
+    /// <para>
+    /// 找不到时<strong>不</strong>退化为「列表里的第一台设备」：多设备时那会把用户随机带到另一台设备上，
+    /// 界面显示的对应关系也跟着变成别人的。只剩一台设备时才自动选中它。
+    /// </para>
+    /// </summary>
     private static DeviceInfo? FindDevice(IReadOnlyList<DeviceInfo> devices, string? identity, string? rootPath)
     {
         if (!string.IsNullOrEmpty(identity))
         {
             DeviceInfo? byIdentity = devices.FirstOrDefault(
-                d => string.Equals(d.Identity, identity, StringComparison.OrdinalIgnoreCase));
+                device => device.MatchesIdentity(identity));
 
-            if (byIdentity is not null)
-            {
-                return byIdentity;
-            }
+            return byIdentity ?? SingleDeviceOrNull(devices);
         }
 
         if (!string.IsNullOrEmpty(rootPath))
@@ -255,22 +269,15 @@ public sealed partial class CompareViewModel
             DeviceInfo? byRoot = devices.FirstOrDefault(
                 d => string.Equals(d.RootPath, rootPath, StringComparison.OrdinalIgnoreCase));
 
-            if (byRoot is not null)
-            {
-                return byRoot;
-            }
+            return byRoot ?? SingleDeviceOrNull(devices);
         }
 
-        return devices.FirstOrDefault();
+        return SingleDeviceOrNull(devices);
     }
 
-    /// <summary>
-    /// 是否为「上次使用的那台设备」：优先比对设备身份；旧版设置文件里没有身份时退回盘符比对。
-    /// </summary>
-    private static bool IsLastKnownDevice(DeviceInfo device, string? identity, string? rootPath) =>
-        !string.IsNullOrEmpty(identity)
-            ? string.Equals(device.Identity, identity, StringComparison.OrdinalIgnoreCase)
-            : string.Equals(device.RootPath, rootPath, StringComparison.OrdinalIgnoreCase);
+    /// <summary>只剩一台设备时返回它（自动选中），否则返回 <c>null</c>（等用户自己选）。</summary>
+    private static DeviceInfo? SingleDeviceOrNull(IReadOnlyList<DeviceInfo> devices) =>
+        devices.Count == 1 ? devices[0] : null;
 
     private void UpdateDeviceBanner(IReadOnlyList<DeviceInfo> devices)
     {

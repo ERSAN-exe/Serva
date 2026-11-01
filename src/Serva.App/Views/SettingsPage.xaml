@@ -165,6 +165,12 @@
                         </ItemsRepeater.Layout>
                     </ItemsRepeater>
 
+                    <!-- 允许同时用两块可移动设备（默认开启） -->
+                    <ToggleSwitch
+                        IsOn="{x:Bind ViewModel.AllowTwoRemovableDevices, Mode=TwoWay}"
+                        OffContent="{x:Bind Text.OptionAllowTwoRemovableDevices, Mode=OneWay}"
+                        OnContent="{x:Bind Text.OptionAllowTwoRemovableDevices, Mode=OneWay}" />
+
                     <!-- 允许把本机硬盘（非系统盘）也当作同步目标 -->
                     <ToggleSwitch
                         IsOn="{x:Bind ViewModel.AllowLocalDrives, Mode=TwoWay}"

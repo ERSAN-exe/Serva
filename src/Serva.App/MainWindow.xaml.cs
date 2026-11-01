@@ -85,9 +85,9 @@ public sealed partial class MainWindow : Window
     private const int GwlWndProc = -4;
 
     /// <summary>最小内容尺寸（逻辑像素）：再小设备卡片与结果表格就挤成一团了。</summary>
-    private const int MinWidthDip = 900;
+    private const int MinWidthDip = 1120;
 
-    private const int MinHeightDip = 600;
+    private const int MinHeightDip = 760;
 
     private delegate nint WindowProc(nint hwnd, uint message, nint wParam, nint lParam);
 
@@ -113,15 +113,15 @@ public sealed partial class MainWindow : Window
     {
         if (message == WmGetMinMaxInfo)
         {
-            double scale = GetDpiForWindow(hwnd) / 96.0;
+            double scale = CurrentScale(hwnd);
             if (scale <= 0)
             {
                 scale = 1.0;
             }
 
             MinMaxInfo info = System.Runtime.InteropServices.Marshal.PtrToStructure<MinMaxInfo>(lParam);
-            info.MinTrackSize.X = (int)Math.Round(MinWidthDip * scale);
-            info.MinTrackSize.Y = (int)Math.Round(MinHeightDip * scale);
+            info.MinTrackSize.X = MinTrackWidth(hwnd, (int)Math.Round(MinWidthDip * scale));
+            info.MinTrackSize.Y = MinTrackHeight(hwnd, (int)Math.Round(MinHeightDip * scale));
             System.Runtime.InteropServices.Marshal.StructureToPtr(info, lParam, false);
         }
 
@@ -150,6 +150,66 @@ public sealed partial class MainWindow : Window
 
     [System.Runtime.InteropServices.DllImport("user32.dll", EntryPoint = "CallWindowProcW")]
     private static extern nint CallWindowProc(nint previous, nint hwnd, uint message, nint wParam, nint lParam);
+
+    /// <summary>最小宽度：不超过显示器工作区（屏幕 / 缩放太小时不至于把窗口顶出屏幕）。</summary>
+    private static int MinTrackWidth(nint hwnd, int desired) =>
+        TryGetWorkArea(hwnd, out int width, out _) ? Math.Min(desired, width) : desired;
+
+    /// <summary>最小高度：同上。</summary>
+    private static int MinTrackHeight(nint hwnd, int desired) =>
+        TryGetWorkArea(hwnd, out _, out int height) ? Math.Min(desired, height) : desired;
+
+    private const uint MonitorDefaultToNearest = 2;
+
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    private struct NativeRect
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
+
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    private struct MonitorInfo
+    {
+        public int Size;
+        public NativeRect Monitor;
+        public NativeRect Work;
+        public uint Flags;
+    }
+
+    /// <summary>窗口所在显示器的工作区尺寸（物理像素）；取不到时返回 <c>false</c>。</summary>
+    private static bool TryGetWorkArea(nint hwnd, out int width, out int height)
+    {
+        width = 0;
+        height = 0;
+
+        nint monitor = MonitorFromWindow(hwnd, MonitorDefaultToNearest);
+        if (monitor == 0)
+        {
+            return false;
+        }
+
+        var info = new MonitorInfo { Size = System.Runtime.InteropServices.Marshal.SizeOf<MonitorInfo>() };
+        if (!GetMonitorInfo(monitor, ref info))
+        {
+            return false;
+        }
+
+        width = info.Work.Right - info.Work.Left;
+        height = info.Work.Bottom - info.Work.Top;
+        return width > 0 && height > 0;
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern nint MonitorFromWindow(nint hwnd, uint flags);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll", EntryPoint = "GetMonitorInfoW")]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static extern bool GetMonitorInfo(nint monitor, ref MonitorInfo info);
+
+
     /// <summary>把当前语言的导航文案写进 NavigationView。</summary>
     private void ApplyNavText()
     {
@@ -168,7 +228,7 @@ public sealed partial class MainWindow : Window
         DisplayArea area = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary);
 
         nint handle = WinRT.Interop.WindowNative.GetWindowHandle(this);
-        double scale = GetDpiForWindow(handle) / 96.0;
+        double scale = CurrentScale(handle);
         if (scale <= 0)
         {
             scale = 1.0;
@@ -187,6 +247,27 @@ public sealed partial class MainWindow : Window
 
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     private static extern uint GetDpiForWindow(nint hwnd);
+
+    /// <summary>
+    /// 当前窗口的显示缩放（DIP → 物理像素）。
+    /// <para>
+    /// 优先取 <c>XamlRoot.RasterizationScale</c>：它和界面排版用的是同一个值。
+    /// 窗口刚创建 / 处理 <c>WM_GETMINMAXINFO</c> 时 <c>GetDpiForWindow</c> 可能还报 96，
+    /// 那样算出来的最小尺寸会小一半，内容照样被裁掉。
+    /// </para>
+    /// </summary>
+    private double CurrentScale(nint hwnd)
+    {
+        if (RootGrid.XamlRoot is { } root && root.RasterizationScale > 0)
+        {
+            return root.RasterizationScale;
+        }
+
+        double scale = GetDpiForWindow(hwnd) / 96.0;
+        return scale > 0 ? scale : 1.0;
+    }
+
+
 
     private const string PageArgumentPrefix = "--page=";
 

@@ -47,7 +47,13 @@ public sealed partial class FolderBrowserDialog : ContentDialog
     /// <summary>是否在盘符页列出「设置里固定的文件夹」。</summary>
     private readonly bool _showPinnedFolders;
 
-    /// <summary>盘符页列出哪些驱动器。</summary>
+    /// <summary>
+    /// 盘符页列出哪些驱动器。
+    /// <para>
+    /// 本机文件夹只列<strong>本机硬盘</strong>（固定磁盘）：可移动设备是同步目标，不是「本机」，
+    /// 混在盘符列表里容易把待备份的 U 盘当成本机来源，甚至和自己同步。
+    /// </para>
+    /// </summary>
     private readonly DriveFilter _driveFilter;
     private readonly FolderBrowserMode _mode;
     private readonly string _root;
@@ -58,7 +64,7 @@ public sealed partial class FolderBrowserDialog : ContentDialog
         string? root = null,
         IEnumerable<string>? excludedDrives = null,
         bool showPinnedFolders = true,
-        DriveFilter driveFilter = DriveFilter.LocalDrives,
+        DriveFilter driveFilter = DriveFilter.FixedDrives,
         string? pairedFolder = null)
     {
         InitializeComponent();
@@ -95,6 +101,33 @@ public sealed partial class FolderBrowserDialog : ContentDialog
     /// <summary>用户确认的文件夹绝对路径。</summary>
     public string? SelectedPath { get; private set; }
 
+    /// <summary>
+    /// 当前文件夹标题：设备模式固定是「设备文件夹」；
+    /// 本机模式在别的可移动设备里也显示「设备文件夹」—— 那已经不是本机硬盘了。
+    /// </summary>
+    private string CurrentFolderLabel() => _mode == FolderBrowserMode.SingleRoot || IsOnRemovableDrive(_current)
+        ? AppText.Current.DeviceFolderLabel
+        : AppText.Current.LocalFolderLabel;
+
+    /// <summary>该路径是否位于可移动设备上（其它 U 盘 / 存储卡）。</summary>
+    private static bool IsOnRemovableDrive(string? path)
+    {
+        string? root = string.IsNullOrEmpty(path) ? null : Path.GetPathRoot(path);
+        if (string.IsNullOrEmpty(root))
+        {
+            return false;
+        }
+
+        try
+        {
+            return VolumeInfo.TryDescribe(new DriveInfo(root))?.IsRemovableStorage == true;
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException)
+        {
+            return false;
+        }
+    }
+
     private void Load()
     {
         _entries.Clear();
@@ -105,9 +138,7 @@ public sealed partial class FolderBrowserDialog : ContentDialog
             return;
         }
 
-        CurrentLabel.Text = _mode == FolderBrowserMode.SingleRoot
-            ? AppText.Current.DeviceFolderLabel
-            : AppText.Current.LocalFolderLabel;
+        CurrentLabel.Text = CurrentFolderLabel();
 
         // 当前文件夹的完整路径：单独一行、自动换行（以前挤在按钮行里被省略号截断）。
         CurrentText.Text = _current;
@@ -131,6 +162,12 @@ public sealed partial class FolderBrowserDialog : ContentDialog
             foreach (string directory in Directory.EnumerateDirectories(_current))
             {
                 if (IsHiddenOrSystem(directory))
+                {
+                    continue;
+                }
+
+                // 系统文件夹（Windows / Program Files / 回收站 …）不列出来，避免点进去选成同步目录。
+                if (ProtectedPaths.IsProtected(directory))
                 {
                     continue;
                 }
@@ -168,7 +205,7 @@ public sealed partial class FolderBrowserDialog : ContentDialog
                 continue;
             }
 
-            _entries.Add(new FolderEntry(drive.RootPath, drive.DisplayName, true));
+            _entries.Add(new FolderEntry(drive.RootPath, drive.DisplayName, true, CustomGlyph: drive.Glyph));
         }
 
         // 用户文件夹（C:\Users\<用户名>）：紧跟盘符列表 —— 下载 / 文档 / 图片 / 桌面都在里面，
@@ -253,7 +290,19 @@ public sealed partial class FolderBrowserDialog : ContentDialog
     private void SetSelection(string? path)
     {
         SelectedPath = path;
-        IsPrimaryButtonEnabled = path is not null;
+
+        // 系统盘根目录与系统文件夹不能当同步目录：主按钮直接禁用，并在下面说明原因。
+        ProtectedPathKind blocked = ProtectedPaths.Classify(path);
+        IsPrimaryButtonEnabled = path is not null && blocked is ProtectedPathKind.None;
+
+        BlockedText.Text = blocked switch
+        {
+            ProtectedPathKind.SystemDriveRoot => AppText.Current.ProtectedSystemDriveRoot,
+            ProtectedPathKind.SystemFolder => AppText.Current.ProtectedSystemFolder,
+            _ => string.Empty,
+        };
+
+        BlockedText.Visibility = blocked is ProtectedPathKind.None ? Visibility.Collapsed : Visibility.Visible;
     }
 
     private static string? GetParentDirectory(string? path)

@@ -26,15 +26,24 @@ public sealed partial class CompareViewModel
             return false;
         }
 
+        // 系统盘根目录 / 系统文件夹一律不能当同步来源（界面上已经选不到，这里再兜一层）。
+        ProtectedPathKind blocked = ProtectedPaths.Classify(localRoot);
+        if (blocked is not ProtectedPathKind.None)
+        {
+            SetBanner(
+                () => blocked is ProtectedPathKind.SystemDriveRoot
+                    ? Text.ProtectedSystemDriveRoot
+                    : Text.ProtectedSystemFolder,
+                InfoBarSeverity.Error);
+            return false;
+        }
+
         string local = localRoot.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         string folder = MappingViewModel.Normalize(deviceFolder);
 
-        // 界面上一条都没有、但设备里存着配置（例如列表刚被清空 / 刷新过）：
-        // 先把设备上的配置读回界面再追加，否则这次保存会把旧配置覆盖成「只剩新加的这一条」。
-        if (Mappings.Count == 0)
-        {
-            RestoreMappings(device, device.Identity, device.RootPath);
-        }
+        // 界面上的列表可能还停留在上一台设备（例如刚切换过设备）：先让它变成「这台设备」的列表，
+        // 否则新加的对应关系会被连同旧列表一起写进错误的那台设备。
+        EnsureMappingsOwnedBy(device);
 
         if (Mappings.Any(m => string.Equals(m.LocalRoot, local, StringComparison.OrdinalIgnoreCase)))
         {
@@ -70,6 +79,31 @@ public sealed partial class CompareViewModel
         "Mappings updated. Click \"Scan and compare\".",
         "对应关系已更新，请点击「扫描并比较」。");
 
+    /// <summary>
+    /// 界面上的这一批对应关系属于哪台设备（<see cref="DeviceInfo.StorageKey"/>）。
+    /// <para>
+    /// 多设备时必须有这个标记：否则切换设备后旧列表还在，既会被当成新设备的对应关系显示出来，
+    /// 又可能被原样写进另一台设备的配置文件（对应关系「串台」，扫描时提示路径不存在）。
+    /// </para>
+    /// </summary>
+    private string? _mappingsOwnerKey;
+
+    /// <summary>区分「哪一台设备」的键（同一个卷才算同一台设备）。</summary>
+    private static string VolumeKey(DeviceInfo device) => device.StorageKey;
+
+    /// <summary>
+    /// 确保界面上的对应关系属于 <paramref name="device"/>：不是这台设备的就重新读回来。
+    /// </summary>
+    private void EnsureMappingsOwnedBy(DeviceInfo device)
+    {
+        if (string.Equals(VolumeKey(device), _mappingsOwnerKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        RestoreMappings(device);
+    }
+
     private void RemoveMapping(MappingViewModel? mapping)
     {
         if (mapping is null || IsRunning || !Mappings.Remove(mapping))
@@ -83,18 +117,35 @@ public sealed partial class CompareViewModel
         ResetResults(MappingsUpdatedPrompt);
     }
 
+    /// <summary>
+    /// 保存当前对应关系：本机设置里按设备分开存一段，同时写回<strong>这台设备</strong>根目录的
+    /// <c>.serva-mappings.json</c>。别的设备的记录完全不受影响。
+    /// </summary>
     private void SaveMappings()
     {
-        _settings.Mappings =
+        if (_selectedDevice is not { } device)
+        {
+            // 没选中设备时界面被锁死，正常不会走到这里；真走到了也不要写坏任何设备的记录。
+            return;
+        }
+
+        if (!string.Equals(VolumeKey(device), _mappingsOwnerKey, StringComparison.OrdinalIgnoreCase))
+        {
+            // 界面上的列表不是这台设备的（理应不会发生）：宁可不保存，也不要把一台设备的
+            // 对应关系写进另一台设备的配置文件 —— 那正是「对应关系串台」的来源。
+            return;
+        }
+
+        List<MappingSetting> mappings =
         [
             .. Mappings.Select(static m => new MappingSetting { LocalRoot = m.LocalRoot, DeviceFolder = m.DeviceFolder }),
         ];
+
+        _settings.SetMappingsForDevice(device, mappings);
+        _mappingsOwnerKey = VolumeKey(device);
         SaveSettings();
 
-        if (_selectedDevice is { } device)
-        {
-            SaveMappingsToDevice(device);
-        }
+        SaveMappingsToDevice(device);
     }
 
     /// <summary>
@@ -121,10 +172,13 @@ public sealed partial class CompareViewModel
 
     /// <summary>
     /// 清空界面上的对应关系（<strong>不</strong>写回设置与设备文件）：
-    /// 设备被拔出、或用户点了「重新扫描」时用 —— 配置本身仍保留在设备文件与本机设置里。
+    /// 设备被拔出、切换设备、或用户点了「重新扫描」时用 —— 配置本身仍保留在设备文件与本机设置里。
+    /// <para>同时忘掉「这批列表属于哪台设备」：下次读回时一定会重新判断。</para>
     /// </summary>
     private void ClearMappingsInMemory()
     {
+        _mappingsOwnerKey = null;
+
         if (Mappings.Count == 0)
         {
             return;
@@ -153,20 +207,29 @@ public sealed partial class CompareViewModel
     }
 
     /// <summary>
-    /// 接入设备时恢复对应关系：优先读设备根目录里的文件（对应关系跟着设备走），
-    /// 其次沿用本机设置里「上次使用的那台设备」的记录。
+    /// 接入 / 切换设备时恢复对应关系：只读<strong>这台设备自己</strong>的配置
+    /// （本机按设备保存的记录优先，其次设备根目录里的文件）。
     /// </summary>
-    private void RestoreMappings(DeviceInfo device, string? knownIdentity, string? knownRoot)
+    private void RestoreMappings(DeviceInfo device)
     {
-        if (Mappings.Count > 0)
+        string key = VolumeKey(device);
+
+        if (!string.Equals(key, _mappingsOwnerKey, StringComparison.OrdinalIgnoreCase))
         {
-            // 内存里已经有对应关系（例如同一台设备重新接入）：不重复从文件恢复，
-            // 但把设备上的标识文件刷新一次，保证它反映界面上的当前选择。
+            // 换了一台设备（或同一块硬盘上的另一个分区）：旧列表必须先扔掉，
+            // 否则它会被显示成这台设备的对应关系，还会被原样写进这台设备的配置文件。
+            ClearMappingsInMemory();
+        }
+        else if (Mappings.Count > 0)
+        {
+            // 同一台设备重新接入 / 只是设备列表重建：刷新设备上的标识文件即可。
             SaveMappingsToDevice(device);
             return;
         }
 
-        IReadOnlyList<MappingSetting> saved = LoadSavedMappings(device, knownIdentity, knownRoot);
+        _mappingsOwnerKey = key;
+
+        IReadOnlyList<MappingSetting> saved = LoadSavedMappings(device);
         foreach (MappingSetting setting in saved)
         {
             if (string.IsNullOrWhiteSpace(setting.LocalRoot) || !Directory.Exists(setting.LocalRoot))
@@ -182,52 +245,42 @@ public sealed partial class CompareViewModel
             Mappings.Add(new MappingViewModel(setting.LocalRoot, setting.DeviceFolder, device.RootPath));
         }
 
+        OnPropertyChanged(nameof(MappingSummary));
+        OnPropertyChanged(nameof(CanScan));
+        RaiseMappingPanelState();
+
         if (Mappings.Count == 0)
         {
             return;
         }
 
-        // 对应关系来自设备文件时顺带写回本机设置，两边保持一致（SaveMappings 也会刷新设备文件）；
-        // 来自本机设置时必须补一次设备文件 —— 否则设备上的标识文件永远停在旧内容，
-        // 用户在选择设备后看不到对应关系被实时写回设备根目录。
-        if (!ReferenceEquals(saved, _settings.Mappings))
-        {
-            SaveMappings();
-        }
-        else
-        {
-            SaveMappingsToDevice(device);
-        }
-
-        OnPropertyChanged(nameof(MappingSummary));
-        OnPropertyChanged(nameof(CanScan));
+        // 读到了就写回本机记录与设备文件，两边始终保持一致。
+        SaveMappings();
     }
 
     /// <summary>
-    /// 取该设备保存过的对应关系：<c>&lt;设备根&gt;\.serva-mappings.json</c> 优先
-    /// （没有本机记录也能恢复）；没有设备文件时，只有「上次使用的那台设备」才沿用
-    /// 本机设置里的记录 —— 否则别的设备占用同一盘符时会误用旧配置。
+    /// 取这台设备保存过的对应关系。
+    /// <para>
+    /// 本机按设备保存的记录优先 —— 它记的是「用户在这台设备上的最后一次选择」，
+    /// 因此删除过的对应关系不会因为设备文件写不进去（只读卡 / 空间不足）又冒出来；
+    /// 本机还没有这台设备的记录时，才去读设备根目录里的 <c>.serva-mappings.json</c>（对应关系跟着设备走）。
+    /// </para>
     /// </summary>
-    private IReadOnlyList<MappingSetting> LoadSavedMappings(
-        DeviceInfo device,
-        string? knownIdentity,
-        string? knownRoot)
+    private IReadOnlyList<MappingSetting> LoadSavedMappings(DeviceInfo device)
     {
-        DeviceMappingFile? onDevice = DeviceMappingStore.Load(device.RootPath);
-
-        // 只取「本机」在这台设备上的那一段：同一个设备在不同电脑上各用各的配置。
-        IReadOnlyList<MappingSetting> mine = onDevice is null
-            ? []
-            : DeviceMappingStore.MappingsForCurrentComputer(onDevice);
-
-        if (mine is { Count: > 0 } mappings
-            && (string.IsNullOrEmpty(onDevice!.DeviceIdentity)
-                || string.Equals(onDevice.DeviceIdentity, device.Identity, StringComparison.OrdinalIgnoreCase)))
+        if (_settings.TryGetMappingsForDevice(device, out IReadOnlyList<MappingSetting> cached))
         {
-            return mappings;
+            return cached;
         }
 
-        return IsLastKnownDevice(device, knownIdentity, knownRoot) ? _settings.Mappings : [];
+        DeviceMappingFile? onDevice = DeviceMappingStore.Load(device.RootPath);
+        if (onDevice is null || !device.MatchesIdentity(onDevice.DeviceIdentity))
+        {
+            // 文件不存在 / 损坏 / 是别的设备写的：这台设备就是没有对应关系。
+            return [];
+        }
+
+        return DeviceMappingStore.MappingsForCurrentComputer(onDevice);
     }
 
     /// <summary>显示提示条：句子由生成器产出，切换语言后可以重新生成。</summary>
@@ -265,8 +318,17 @@ public sealed partial class CompareViewModel
         OnPropertyChanged(nameof(MappingSummary));
         OnPropertyChanged(nameof(LocalDriveText));
         OnPropertyChanged(nameof(DeviceDriveText));
+        OnPropertyChanged(nameof(LocalSideName));
+        OnPropertyChanged(nameof(DeviceSideName));
         OnPropertyChanged(nameof(LocalCard));
         OnPropertyChanged(nameof(DeviceCard));
+        OnPropertyChanged(nameof(MergeOptionText));
+        OnPropertyChanged(nameof(OverwriteDeviceOptionText));
+        OnPropertyChanged(nameof(OverwriteLocalOptionText));
+        OnPropertyChanged(nameof(FilterLocalNewerText));
+        OnPropertyChanged(nameof(FilterDeviceNewerText));
+        OnPropertyChanged(nameof(FilterDeviceOnlyText));
+        OnPropertyChanged(nameof(FilterLocalOnlyText));
         OnPropertyChanged(nameof(MergeHintText));
         OnPropertyChanged(nameof(OverwriteLocalHintText));
         OnPropertyChanged(nameof(OverwriteDeviceHintText));

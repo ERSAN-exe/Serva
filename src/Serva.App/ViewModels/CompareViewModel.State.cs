@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml.Controls;
 using Serva.App.Controls;
 using Serva.App.Localization;
 using Serva.Core.Models;
+using Serva.Core.Services;
 
 namespace Serva.App.ViewModels;
 
@@ -34,10 +35,18 @@ public sealed partial class CompareViewModel
             RaiseMappingPanelState();
             OnPropertyChanged(nameof(CanScan));
             OnPropertyChanged(nameof(DeviceCard));
+            OnPropertyChanged(nameof(LocalCard));
+            OnPropertyChanged(nameof(DeviceSideName));
+            OnPropertyChanged(nameof(LocalSideName));
+            OnPropertyChanged(nameof(OverwriteDeviceOptionText));
+            OnPropertyChanged(nameof(OverwriteLocalOptionText));
+            OnPropertyChanged(nameof(OverwriteLocalHintText));
+            OnPropertyChanged(nameof(OverwriteDeviceHintText));
 
-            // 「重新扫描」会重建整份 DeviceInfo（可用空间等时刻在变）。设备身份（硬件 ID + 卷序列号）
-            // 没变就还是同一台设备：保留对应关系与比较结果。
-            if (value is not null && value.IsSameDevice(previous))
+            // 「重新扫描」会重建整份 DeviceInfo（可用空间等时刻在变）。同一个「卷」就还是同一台设备：
+            // 保留对应关系与比较结果。这里必须按 StorageKey 比较而不是 IsSameDevice ——
+            // 同一块硬盘上的两个分区硬件 ID 相同，只看身份会把它们当成一台设备，对应关系就串台了。
+            if (value is not null && value.IsSameVolume(previous))
             {
                 return;
             }
@@ -51,24 +60,14 @@ public sealed partial class CompareViewModel
                 return;
             }
 
-            // 换了设备：清掉上一台设备的对应关系（它的配置留在它自己根目录的文件里，不受影响），
-            // 然后尝试读取新设备根目录里的 .serva-mappings.json —— 对应关系跟着设备走。
-            string? knownRoot = _settings.LastTargetRoot;
-            string? knownIdentity = _settings.LastTargetIdentity;
-
-            if (Mappings.Count > 0)
-            {
-                Mappings.Clear();
-                _settings.Mappings = [];
-                SaveSettings();
-            }
-
             _settings.LastTargetRoot = value.RootPath;
             _settings.LastTargetIdentity = value.Identity;
             SaveSettings();
 
-            // 换了设备：读新设备自己根目录里的对应关系（上一台设备的配置留在它自己的文件里，不受影响）。
-            RestoreMappings(value, knownIdentity, knownRoot);
+            // 换了设备（或同一块硬盘上的另一个分区）：RestoreMappings 会先扔掉界面上的旧列表，
+            // 再读回这台设备自己的对应关系 —— 旧配置留在它自己根目录的文件与本机记录里，不受影响，
+            // 也绝不会被写进这台设备。
+            RestoreMappings(value);
 
             ResetResults(() => Mappings.Count > 0
                 ? Text.T(
@@ -221,11 +220,92 @@ public sealed partial class CompareViewModel
         ? Text.T("device", "设备盘")
         : CompareRowViewModel.DriveOf(Mappings[0].DeviceRoot);
 
+    /// <summary>本机来源所在盘符（探测结果的缓存键）。</summary>
+    private string? _localSideProbeRoot;
+    private bool _localSideIsRemovable;
+    private string? _localSideVolumeLabel;
+
+    /// <summary>本机来源所在磁盘是否为可移动设备（按盘符探测一次，结果缓存）。</summary>
+    private bool LocalSideIsRemovable
+    {
+        get
+        {
+            ProbeLocalSide();
+            return _localSideIsRemovable;
+        }
+    }
+
+    private void ProbeLocalSide()
+    {
+        string? root = Mappings.Count == 0 ? null : CompareRowViewModel.DriveOf(Mappings[0].LocalRoot);
+
+        if (string.Equals(root, _localSideProbeRoot, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        _localSideProbeRoot = root;
+        _localSideIsRemovable = false;
+        _localSideVolumeLabel = null;
+
+        if (string.IsNullOrEmpty(root))
+        {
+            return;
+        }
+
+        try
+        {
+            DeviceInfo? info = VolumeInfo.TryDescribe(new DriveInfo(root + Path.DirectorySeparatorChar));
+            _localSideIsRemovable = info?.IsRemovableStorage ?? false;
+            _localSideVolumeLabel = info?.VolumeLabel;
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException)
+        {
+            // 盘符暂时不可用：按「本机硬盘」处理即可（措辞差别不影响同步）。
+        }
+    }
+
+    /// <summary>
+    /// 两侧是否<strong>同类</strong>：本机文件夹与目标设备在同类介质上
+    /// （都在移动设备上，或都在本机硬盘上）。
+    /// <para>
+    /// 同类时界面直接用盘符称呼两侧（如「D: → G:」），避免「本机 / 设备」让人分不清谁是谁；
+    /// 只有当一侧是移动设备、另一侧是本机硬盘时，才用「本机 / 设备」这种说法。
+    /// </para>
+    /// </summary>
+    public bool SameKindSides => _selectedDevice is { } device
+        && Mappings.Count > 0
+        && LocalSideIsRemovable == device.IsRemovableStorage;
+
+    /// <summary>本机一侧在句子里的称呼：同类时是盘符，否则是「本机」。</summary>
+    public string LocalSideName => SameKindSides ? LocalDriveText : Text.T("local disk", "本机");
+
+    /// <summary>设备一侧在句子里的称呼：同类时是盘符，否则是「设备」。</summary>
+    public string DeviceSideName => SameKindSides ? DeviceDriveText : Text.T("device", "设备");
+
     /// <summary>本机侧盘符卡片（小字角色 + 盘符），用于结果页的执行方式。</summary>
-    public DriveCardViewModel LocalCard => new(Text.T("Local disk", "本机硬盘"), LocalDriveText);
+    public DriveCardViewModel LocalCard => new(LocalRoleText, LocalDriveText);
 
     /// <summary>设备侧盘符卡片：角色里带上卷标（如「外置设备 · 0123」）。</summary>
     public DriveCardViewModel DeviceCard => new(DeviceRoleText, DeviceDriveText);
+
+    /// <summary>本机侧卡片的角色文案：跟随本机来源所在磁盘的种类（本机硬盘 / 外置设备 · 卷标）。</summary>
+    private string LocalRoleText
+    {
+        get
+        {
+            ProbeLocalSide();
+
+            if (!LocalSideIsRemovable)
+            {
+                return Text.T("Local disk", "本机硬盘");
+            }
+
+            return _localSideVolumeLabel is { Length: > 0 } label
+                ? Text.F("Removable device · {0}", "外置设备 · {0}", label)
+                : Text.T("Removable device", "外置设备");
+        }
+    }
 
     /// <summary>
     /// 设备卡片的角色文案：移动设备是「外置设备（卷标）」，
@@ -237,6 +317,36 @@ public sealed partial class CompareViewModel
         { VolumeLabel.Length: > 0 } device => Text.F("Removable device · {0}", "外置设备 · {0}", device.VolumeLabel),
         _ => Text.T("Removable device", "外置设备"),
     };
+
+    /// <summary>执行方式选项：「合并」。</summary>
+    public string MergeOptionText => Text.T("Merge", "合并");
+
+    /// <summary>执行方式选项：覆盖设备（两侧同类时直接用设备盘符）。</summary>
+    public string OverwriteDeviceOptionText => SameKindSides
+        ? Text.F("Overwrite {0}", "覆盖 {0}", DeviceDriveText)
+        : Text.T("Overwrite device", "覆盖设备");
+
+    /// <summary>执行方式选项：覆盖本机硬盘（两侧同类时直接用本机盘符）。</summary>
+    public string OverwriteLocalOptionText => SameKindSides
+        ? Text.F("Overwrite {0}", "覆盖 {0}", LocalDriveText)
+        : Text.T("Overwrite local disk", "覆盖本机硬盘");
+
+    /// <summary>筛选下拉菜单的文案：两侧同类时用盘符，「本机 / 设备」才有意义时用文字。</summary>
+    public string FilterLocalNewerText => SameKindSides
+        ? Text.F("{0} newer", "{0} 更新", LocalDriveText)
+        : Text.T("Local newer", "本机更新");
+
+    public string FilterDeviceNewerText => SameKindSides
+        ? Text.F("{0} newer", "{0} 更新", DeviceDriveText)
+        : Text.T("Device newer", "设备更新");
+
+    public string FilterDeviceOnlyText => SameKindSides
+        ? Text.F("{0} only", "仅 {0}", DeviceDriveText)
+        : Text.T("Device only", "仅设备");
+
+    public string FilterLocalOnlyText => SameKindSides
+        ? Text.F("{0} only", "仅 {0}", LocalDriveText)
+        : Text.T("Local only", "仅本机");
 
     /// <summary>盘符卡片之间显示的图标：合并是双向（同步）图标，覆盖是单向箭头。</summary>
     public string ActionIconGlyph => Action switch
@@ -251,11 +361,16 @@ public sealed partial class CompareViewModel
         "Both sides fill in each other's newer files; files changed on both sides keep the newer version.",
         "两个方向互相补充较新的文件；两边都修改过的文件保留较新版本。");
 
-    /// <summary>「用本机内容覆盖设备」的提示（红色）；下一行是黑色说明 +「执行策略」按钮。</summary>
-    public string OverwriteLocalHintText => Text.F(
-        "Overwrite the device with the contents of the local disk ({0}).",
-        "用本机硬盘（{0}）的内容覆盖设备。",
-        LocalDriveText);
+    /// <summary>
+    /// 「用本机内容覆盖设备」的提示（红色）。
+    /// <para>两侧同类（都在移动设备 / 都在本机硬盘）时直接用盘符说清楚谁覆盖谁。</para>
+    /// </summary>
+    public string OverwriteLocalHintText => SameKindSides
+        ? Text.F("Overwrite {0} with the contents of {1}.", "用 {1} 的内容覆盖 {0}。", DeviceDriveText, LocalDriveText)
+        : Text.F(
+            "Overwrite the device with the contents of the local disk ({0}).",
+            "用本机硬盘（{0}）的内容覆盖设备。",
+            LocalDriveText);
 
     /// <summary>
     /// 「用设备内容覆盖本机硬盘」的提示（红色）。
@@ -264,10 +379,12 @@ public sealed partial class CompareViewModel
     /// 下一行给出「执行策略」的跳转（与「覆盖设备」那句保持一致）。
     /// </para>
     /// </summary>
-    public string OverwriteDeviceHintText => Text.F(
-        "Overwrite the local disk ({0}) with the contents of the device.",
-        "用设备的内容覆盖本机硬盘（{0}）。",
-        LocalDriveText);
+    public string OverwriteDeviceHintText => SameKindSides
+        ? Text.F("Overwrite {0} with the contents of {1}.", "用 {1} 的内容覆盖 {0}。", LocalDriveText, DeviceDriveText)
+        : Text.F(
+            "Overwrite the local disk ({0}) with the contents of the device.",
+            "用设备的内容覆盖本机硬盘（{0}）。",
+            LocalDriveText);
 
     public Visibility MergeHintVisibility => Action == ResultAction.Merge ? Visibility.Visible : Visibility.Collapsed;
 
@@ -301,9 +418,9 @@ public sealed partial class CompareViewModel
     /// <summary>当前选择的执行方式（与选项文字一致），用于「执行前确认」弹窗。</summary>
     public string ActionDisplayName => Action switch
     {
-        ResultAction.OverwriteLocalToDevice => Text.T("Overwrite device", "覆盖设备"),
-        ResultAction.OverwriteDeviceToLocal => Text.T("Overwrite local disk", "覆盖本机硬盘"),
-        _ => Text.T("Merge", "合并"),
+        ResultAction.OverwriteLocalToDevice => OverwriteDeviceOptionText,
+        ResultAction.OverwriteDeviceToLocal => OverwriteLocalOptionText,
+        _ => MergeOptionText,
     };
 
     /// <summary>
@@ -323,20 +440,32 @@ public sealed partial class CompareViewModel
         PlanActionCounts summary = RunSummary;
         var lines = new List<string>();
 
-        AddLine(summary.CopyToLocal, "{0} file(s) will be copied to the local disk", "{0} 个文件将被复制到本机");
-        AddLine(summary.CopyToDevice, "{0} file(s) will be copied to the device", "{0} 个文件将被复制到设备");
-        AddLine(summary.OverwriteOnDevice, "{0} file(s) on the device will be overwritten", "{0} 个设备上的文件将被覆盖");
-        AddLine(summary.OverwriteOnLocal, "{0} file(s) on the local disk will be overwritten", "{0} 个本机上的文件将被覆盖");
+        if (SameKindSides)
+        {
+            // 两侧同类（都在移动设备 / 都在本机硬盘）：直接说盘符，避免「本机 / 设备」分不清。
+            AddLine(summary.CopyToLocal, "{0} file(s) will be copied to {1}", "{0} 个文件将被复制到 {1}", LocalDriveText);
+            AddLine(summary.CopyToDevice, "{0} file(s) will be copied to {1}", "{0} 个文件将被复制到 {1}", DeviceDriveText);
+            AddLine(summary.OverwriteOnDevice, "{0} file(s) on {1} will be overwritten", "{0} 个文件将在 {1} 上被覆盖", DeviceDriveText);
+            AddLine(summary.OverwriteOnLocal, "{0} file(s) on {1} will be overwritten", "{0} 个文件将在 {1} 上被覆盖", LocalDriveText);
+        }
+        else
+        {
+            AddLine(summary.CopyToLocal, "{0} file(s) will be copied to the local disk", "{0} 个文件将被复制到本机");
+            AddLine(summary.CopyToDevice, "{0} file(s) will be copied to the device", "{0} 个文件将被复制到设备");
+            AddLine(summary.OverwriteOnDevice, "{0} file(s) on the device will be overwritten", "{0} 个设备上的文件将被覆盖");
+            AddLine(summary.OverwriteOnLocal, "{0} file(s) on the local disk will be overwritten", "{0} 个本机上的文件将被覆盖");
+        }
+
         AddLine(summary.Delete, "{0} file(s) will be deleted", "{0} 个文件将被删除");
         AddLine(summary.Skip, "{0} file(s) will be left untouched", "{0} 个文件不会执行操作");
 
         return lines;
 
-        void AddLine(int count, string english, string chinese)
+        void AddLine(int count, string english, string chinese, string? target = null)
         {
             if (count > 0)
             {
-                lines.Add(Text.F(english, chinese, count));
+                lines.Add(target is null ? Text.F(english, chinese, count) : Text.F(english, chinese, count, target));
             }
         }
     }

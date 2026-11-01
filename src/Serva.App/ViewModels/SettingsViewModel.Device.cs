@@ -26,6 +26,29 @@ public sealed partial class SettingsViewModel
     // ============================ 执行策略 ============================
 
     /// <summary>
+    /// 是否允许同时用两块可移动设备（一块做同步目标，另一块做本机来源）。
+    /// <para>
+    /// 默认开启。关闭后「选择本机文件夹」里只列本机硬盘，避免把另一块 U 盘
+    /// 误当成本机来源、或者干脆和自己同步。
+    /// </para>
+    /// </summary>
+    public bool AllowTwoRemovableDevices
+    {
+        get => _settings.Value.AllowTwoRemovableDevices;
+        set
+        {
+            if (_settings.Value.AllowTwoRemovableDevices == value)
+            {
+                return;
+            }
+
+            _settings.Value.AllowTwoRemovableDevices = value;
+            OnPropertyChanged();
+            Save();
+        }
+    }
+
+    /// <summary>
     /// 是否允许把本机硬盘（不含系统盘）也当作同步目标。
     /// 打开后比较页的设备列表里会出现本机的数据盘。
     /// </summary>

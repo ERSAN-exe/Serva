@@ -40,6 +40,7 @@ public sealed class SettingsStore
                 if (settings is not null)
                 {
                     settings.Options ??= new SyncOptions();
+                    MigrateLegacyMappings(settings);
                     return settings;
                 }
             }
@@ -55,6 +56,37 @@ public sealed class SettingsStore
         }
 
         return new AppSettings();
+    }
+
+    /// <summary>
+    /// 旧版设置文件只有一个全局 <see cref="AppSettings.Mappings"/>：搬到「上次使用的那台设备」名下，
+    /// 之后每台设备各存各的，切换设备不会串台。
+    /// <para>
+    /// 没有设备信息时搬不了，就原样留着（读设备根目录里的 <c>.serva-mappings.json</c> 仍能找回）。
+    /// </para>
+    /// </summary>
+    private static void MigrateLegacyMappings(AppSettings settings)
+    {
+        if (settings.Mappings is not { Count: > 0 })
+        {
+            return;
+        }
+
+        string? key = settings.LastTargetIdentity;
+        if (string.IsNullOrEmpty(key))
+        {
+            key = settings.LastTargetRoot;
+        }
+
+        if (string.IsNullOrEmpty(key))
+        {
+            return;
+        }
+
+        settings.SetMappingsForDevice(key, settings.LastTargetRoot ?? string.Empty, null, settings.Mappings);
+
+        // 搬完就清空：旧列表如果还在，以后可能又被当成「上次使用那台设备」的对应关系读回来。
+        settings.Mappings = [];
     }
 
     public void Save(AppSettings settings)
@@ -117,6 +149,7 @@ public sealed class SettingsStore
         using FileStream stream = File.OpenRead(sourcePath);
         AppSettings settings = JsonSerializer.Deserialize<AppSettings>(stream, JsonOptions) ?? new AppSettings();
         settings.Options ??= new SyncOptions();
+        MigrateLegacyMappings(settings);
         Save(settings);
         return settings;
     }

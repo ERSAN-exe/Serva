@@ -39,6 +39,42 @@ public class FileScannerTests
     }
 
     [Fact]
+    public void SkipsHiddenFilesAndHiddenDirectories()
+    {
+        using var tree = new TestTree("scan-hidden");
+        tree.Add("keep.txt", "K");
+        tree.Add("visible/inside.txt", "I");
+
+        string hiddenFile = tree.Add("hidden.txt", "H");
+        File.SetAttributes(hiddenFile, FileAttributes.Hidden);
+
+        // 整个目录隐藏（.git / 应用缓存目录之类）：里面的文件自身没有隐藏属性，也必须一起跳过。
+        tree.Add(".git/config", "G");
+        File.SetAttributes(Path.Combine(tree.Root, ".git"), FileAttributes.Hidden);
+
+        // 点开头的目录在 exFAT / FAT 上可能没有隐藏属性：按名字同样跳过。
+        tree.Add(".vscode/settings.json", "{}");
+
+        ScanResult result = new FileScanner(new ExcludeMatcher(), skipHiddenAndSystem: true).Scan(tree.Root);
+
+        Assert.Equal(
+            ["keep.txt", "visible/inside.txt"],
+            result.Files.Keys.OrderBy(static k => k, StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public void HiddenEntriesAreScanned_WhenTheFlagIsOff()
+    {
+        using var tree = new TestTree("scan-hidden-off");
+        string hiddenFile = tree.Add("hidden.txt", "H");
+        File.SetAttributes(hiddenFile, FileAttributes.Hidden);
+
+        ScanResult result = new FileScanner(new ExcludeMatcher(), skipHiddenAndSystem: false).Scan(tree.Root);
+
+        Assert.True(result.Files.ContainsKey("hidden.txt"));
+    }
+
+    [Fact]
     public void SingleFileSourceUsesFileNameAsKey()
     {
         using var tree = new TestTree("scan-single");

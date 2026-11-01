@@ -14,6 +14,8 @@ public class SettingsStoreTests
 
         var store = new SettingsStore(path);
         AppSettings settings = store.Load();
+        settings.AllowLocalDrives = true;
+        settings.AllowTwoRemovableDevices = false;
         settings.Theme = "dark";
         settings.Language = "zh-Hans";
         settings.Options.Concurrency = 6;
@@ -34,6 +36,7 @@ public class SettingsStoreTests
 
         Assert.Equal("dark", reloaded.Theme);
         Assert.Equal("zh-Hans", reloaded.Language);
+        Assert.False(reloaded.AllowTwoRemovableDevices);
         Assert.Equal(6, reloaded.Options.Concurrency);
         Assert.True(reloaded.Options.MirrorDelete);
         Assert.False(reloaded.Options.UseTrashFolder);
@@ -61,6 +64,7 @@ public class SettingsStoreTests
         Assert.Equal("system", settings.Theme);
         Assert.Equal("system", settings.Language);   // 默认语言：跟随系统
         Assert.False(settings.AllowLocalDrives);     // 默认不允许选本机硬盘
+        Assert.True(settings.AllowTwoRemovableDevices);   // 默认允许同时用两块移动设备
         Assert.Equal(SyncOptions.DefaultConcurrency, settings.Options.Concurrency);
         Assert.Empty(settings.Mappings);
         Assert.Equal(ExcludeMatcher.DefaultExcludePatterns.Count, settings.Options.ExcludePatterns.Count);
@@ -132,9 +136,12 @@ public class SettingsStoreTests
 
         clone.Options.ExcludePatterns.Add("added");
         clone.Mappings.Add(new MappingSetting { LocalRoot = @"D:\x" });
+        clone.DeviceMappings.Add(
+            new DeviceMappingsSetting { DeviceKey = "key", Mappings = [new MappingSetting { LocalRoot = @"D:\y" }] });
 
         Assert.DoesNotContain("added", settings.Options.ExcludePatterns);
         Assert.Empty(settings.Mappings);
+        Assert.Empty(settings.DeviceMappings);
     }
 
     [Fact]

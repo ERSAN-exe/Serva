@@ -52,22 +52,63 @@ public sealed record DeviceInfo(
     public bool IsSystemDrive { get; init; }
 
     /// <summary>
-    /// 设备身份：优先用 <see cref="HardwareId"/>（换盘符也不变），读不到硬件信息时退化为
+    /// 设备身份：<see cref="HardwareId"/>（换盘符也不变）<strong>加卷序列号</strong>，读不到硬件信息时退化为
     /// 「卷序列号 + 卷标 + 容量」。<strong>不含盘符</strong> —— 盘符是会被系统重新分配的。
+    /// <para>
+    /// 必须带上卷序列号：同一块硬盘上的两个分区、或两块固件不提供唯一序列号的同型号 U 盘，
+    /// 只靠硬件 ID 会被当成同一台设备，对应关系就会串台（在 A 上加的出现在 B 上）。
+    /// </para>
     /// </summary>
     public string Identity => HardwareId.Length > 0
+        ? $"{HardwareId}|{VolumeSerial}"
+        : $"{VolumeSerial}|{VolumeLabel}|{TotalSize}";
+
+    /// <summary>卷序列号是否可用（读失败时是 <c>00000000</c>）。</summary>
+    public bool HasVolumeSerial =>
+        VolumeSerial.Length > 0
+        && !string.Equals(VolumeSerial, "00000000", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// 在本机设置里区分「哪一台设备」用的键。
+    /// <para>
+    /// 卷序列号读不到时退化为「身份 + 盘符」—— 否则两块同型号 U 盘会共用一份对应关系。
+    /// </para>
+    /// </summary>
+    public string StorageKey => HasVolumeSerial ? Identity : $"{Identity}|{RootPath}";
+
+    /// <summary>
+    /// 旧版本写下的身份（只有硬件 ID，或只有「卷序列号 + 卷标 + 容量」）。
+    /// 升级后要能认领这些旧记录，否则看起来像「对应关系丢了」。
+    /// </summary>
+    private string LegacyIdentity => HardwareId.Length > 0
         ? HardwareId
         : $"{VolumeSerial}|{VolumeLabel}|{TotalSize}";
+
+    /// <summary>设备文件 / 设置里记录的设备身份是否属于本设备（兼容旧格式）。</summary>
+    public bool MatchesIdentity(string? identity) =>
+        string.IsNullOrEmpty(identity)
+        || string.Equals(identity, Identity, StringComparison.OrdinalIgnoreCase)
+        || string.Equals(identity, LegacyIdentity, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>是否为同一台设备（只看身份，不看盘符）。</summary>
     public bool IsSameDevice(DeviceInfo? other) =>
         other is not null
         && string.Equals(Identity, other.Identity, StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>是否为同一个「卷」（换盘符后返回 <c>false</c>：对应关系要按卷区分）。</summary>
+    public bool IsSameVolume(DeviceInfo? other) =>
+        other is not null
+        && string.Equals(StorageKey, other.StorageKey, StringComparison.OrdinalIgnoreCase);
+
     /// <summary>「E:\ KINGSTON」式的展示名。</summary>
     public string DisplayName => string.IsNullOrWhiteSpace(VolumeLabel)
         ? RootPath
         : $"{RootPath} {VolumeLabel}";
+
+    /// <summary>
+    /// 设备列表里的图标（Segoe MDL2 Assets）：可移动设备用 U 盘图标，其余用硬盘图标。
+    /// </summary>
+    public string Glyph => IsRemovableStorage ? "\uE88E" : "\uEDA2";
 
     /// <summary>「57.3 GB 可用 / 119.2 GB」式容量描述。</summary>
     public string CapacityText =>

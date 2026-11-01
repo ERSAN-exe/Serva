@@ -9,11 +9,19 @@ namespace Serva.App.ViewModels;
 /// <summary>结果表中的一行。</summary>
 public sealed class CompareRowViewModel : ObservableObject
 {
-    public CompareRowViewModel(PlanItem item, MappingViewModel mapping)
+    /// <param name="useDriveNames">
+    /// 两侧同类（都在移动设备 / 都在本机硬盘）时用盘符称呼目标端，
+    /// 而不是「本机 / 设备」—— 否则两张卡都叫「外置设备」时根本分不清往哪边写。
+    /// </param>
+    public CompareRowViewModel(PlanItem item, MappingViewModel mapping, bool useDriveNames = false)
     {
         Model = item;
         Mapping = mapping;
+        UseDriveNames = useDriveNames;
     }
+
+    /// <summary>动作文案里是否用盘符代替「本机 / 设备」。</summary>
+    public bool UseDriveNames { get; }
 
     /// <summary>勾选状态变化时通知父级刷新「将执行 N 项」。</summary>
     public event EventHandler? SelectionChanged;
@@ -61,6 +69,7 @@ public sealed class CompareRowViewModel : ObservableObject
 
     /// <summary>
     /// 修改时间列的悬停说明：两端各自的修改时间（精确到秒）—— 新旧就是按这两个时间判定的。
+    /// <para>两侧同类（都在移动设备 / 都在本机硬盘）时用盘符称呼，避免「本机 / 设备」分不清。</para>
     /// </summary>
     public string ModifiedTooltip
     {
@@ -72,24 +81,36 @@ public sealed class CompareRowViewModel : ObservableObject
 
             if (left is not null && right is not null)
             {
-                return text.F(
-                    "Local: {0}\nDevice: {1}",
-                    "本机：{0}\n设备：{1}",
-                    FormatTime(left.LastWriteTimeUtc, withSeconds: true),
-                    FormatTime(right.LastWriteTimeUtc, withSeconds: true));
+                return UseDriveNames
+                    ? $"{LocalDrive}  {FormatTime(left.LastWriteTimeUtc, withSeconds: true)}\n{DeviceDrive}  {FormatTime(right.LastWriteTimeUtc, withSeconds: true)}"
+                    : text.F(
+                        "Local: {0}\nDevice: {1}",
+                        "本机：{0}\n设备：{1}",
+                        FormatTime(left.LastWriteTimeUtc, withSeconds: true),
+                        FormatTime(right.LastWriteTimeUtc, withSeconds: true));
             }
 
             if (left is not null)
             {
-                return text.F(
-                    "Local only: {0}",
-                    "仅本机：{0}",
-                    FormatTime(left.LastWriteTimeUtc, withSeconds: true));
+                return UseDriveNames
+                    ? $"{LocalDrive}  {FormatTime(left.LastWriteTimeUtc, withSeconds: true)}"
+                    : text.F(
+                        "Local only: {0}",
+                        "仅本机：{0}",
+                        FormatTime(left.LastWriteTimeUtc, withSeconds: true));
             }
 
-            return right is not null
-                ? text.F("Device only: {0}", "仅设备：{0}", FormatTime(right.LastWriteTimeUtc, withSeconds: true))
-                : string.Empty;
+            if (right is null)
+            {
+                return string.Empty;
+            }
+
+            return UseDriveNames
+                ? $"{DeviceDrive}  {FormatTime(right.LastWriteTimeUtc, withSeconds: true)}"
+                : text.F(
+                    "Device only: {0}",
+                    "仅设备：{0}",
+                    FormatTime(right.LastWriteTimeUtc, withSeconds: true));
         }
     }
 
@@ -98,8 +119,8 @@ public sealed class CompareRowViewModel : ObservableObject
 
     public CompareStatus DisplayStatus => Model.DisplayStatus;
 
-    /// <summary>状态文案：较新的一侧显示该侧盘符（如「E: 较新」）。</summary>
-    public string StatusText => StatusPresentation.Text(Model.DisplayStatus, LocalDrive, DeviceDrive);
+    /// <summary>状态文案：较新的一侧显示该侧盘符（如「E: 较新」）；两侧同类时连「仅某一侧」也用盘符。</summary>
+    public string StatusText => StatusPresentation.Text(Model.DisplayStatus, LocalDrive, DeviceDrive, UseDriveNames);
 
     /// <summary>本机侧盘符（<c>D:</c>）。</summary>
     public string LocalDrive => DriveOf(Mapping.LocalRoot);
@@ -129,12 +150,24 @@ public sealed class CompareRowViewModel : ObservableObject
 
             return Model.Action switch
             {
-                PlanAction.CopyToLocal => targetExists
-                    ? text.T("Overwrite → local", "覆盖到本机")
-                    : text.T("Copy → local", "复制到本机"),
-                PlanAction.CopyToDevice => targetExists
-                    ? text.T("Overwrite → device", "覆盖到设备")
-                    : text.T("Copy → device", "复制到设备"),
+                PlanAction.CopyToLocal => UseDriveNames
+                    ? text.F(
+                        targetExists ? "Overwrite → {0}" : "Copy → {0}",
+                        targetExists ? "覆盖到 {0}" : "复制到 {0}",
+                        LocalDrive)
+                    : targetExists
+                        ? text.T("Overwrite → local", "覆盖到本机")
+                        : text.T("Copy → local", "复制到本机"),
+
+                PlanAction.CopyToDevice => UseDriveNames
+                    ? text.F(
+                        targetExists ? "Overwrite → {0}" : "Copy → {0}",
+                        targetExists ? "覆盖到 {0}" : "复制到 {0}",
+                        DeviceDrive)
+                    : targetExists
+                        ? text.T("Overwrite → device", "覆盖到设备")
+                        : text.T("Copy → device", "复制到设备"),
+
                 _ => Model.ActionText,
             };
         }

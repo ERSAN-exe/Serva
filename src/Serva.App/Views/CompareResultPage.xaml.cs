@@ -95,8 +95,25 @@ public sealed partial class CompareResultPage : Page
             }
         }
 
-        ViewModel.StartCommand.Execute(null);
+        // 执行期间用弹窗显示进度与统计（原来是「比较」页上的「执行中」卡片）；
+        // 结束后自动关闭，再回到比较页查看结果与日志。
+        var progress = new RunProgressDialog(ViewModel) { XamlRoot = XamlRoot };
+        progress.Opened += (_, _) => StartRun(progress);
+
+        await progress.ShowAsync();
         GoBack();
+    }
+
+    /// <summary>弹窗显示出来之后才真正开始执行（避免执行瞬间结束、弹窗却还没打开）。</summary>
+    private void StartRun(RunProgressDialog dialog)
+    {
+        ViewModel.StartCommand.Execute(null);
+
+        // 没能开始（例如空间预检未通过）：别把空弹窗晾在那里。
+        if (!ViewModel.IsRunning)
+        {
+            dialog.Hide();
+        }
     }
 
     private void GoBack()

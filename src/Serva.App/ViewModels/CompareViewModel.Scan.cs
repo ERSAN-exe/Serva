@@ -16,6 +16,19 @@ public sealed partial class CompareViewModel
             return;
         }
 
+        // 旧配置里可能还留着指向系统盘根目录 / 系统文件夹的对应关系：直接拒绝，
+        // 绝不能拿它去扫描、更不能拿它执行（镜像删除会把系统当「多余文件」）。
+        if (Mappings.FirstOrDefault(static m => ProtectedPaths.IsProtected(m.LocalRoot)) is { } blocked)
+        {
+            SetBanner(
+                () => Text.F(
+                    "This mapping points at a protected folder and can't be used: {0}",
+                    "这条对应关系指向受保护的文件夹，无法使用：{0}",
+                    blocked.LocalRoot),
+                InfoBarSeverity.Error);
+            return;
+        }
+
         IsBusy = true;
         ClearBanner();
         SetScanSummary(() => Text.T("Scanning…", "正在扫描…"));
