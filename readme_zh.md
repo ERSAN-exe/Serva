@@ -4,11 +4,9 @@
 
 # Serva
 
-**现代化的 Windows 文件比较与同步工具**
-
 <p>
 
-![平台](https://img.shields.io/badge/Windows-x64%20%7C%20ARM64-blue) ![系统](https://img.shields.io/badge/Windows-10%20(1809%2B)%20%7C%2011-blue) ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white) ![语言](https://img.shields.io/badge/Language-C%23-239120?logo=csharp&logoColor=white) ![许可证](https://img.shields.io/badge/license-GPL--3.0-orange?logo=opensourceinitiative)
+![平台](https://img.shields.io/badge/Windows%2011-x64%20%7C%20ARM64-blue) ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white) ![语言](https://img.shields.io/badge/Language-C%23-239120?logo=csharp&logoColor=white) ![许可证](https://img.shields.io/badge/license-GPL--3.0-orange?logo=opensourceinitiative)
 
 </p>
 
@@ -16,20 +14,20 @@
 
 # 项目简介
 
-**Serva —— 现代化的 Windows 文件比较与同步工具**
+**Serva — 文件比较与同步**
 
-Serva 是一款轻量、高性能的桌面应用程序，专为 Windows 10 和 Windows 11 设计，提供文件夹比较与文件同步功能。应用基于 WinUI 3 和 .NET 10 构建，采用简洁现代的界面，帮助你轻松比较目录内容、预览同步方案，并保持本地文件夹与外部存储设备中的文件同步。
+Serva 是一个Windows 11上的简单的文件对比和同步应用
 
 # 应用截图
 
-<img src="screenshots/mainzh.png" alt="mainpage">
-<img src="screenshots/mappingzh.png" alt="mapping">
-<img src="screenshots/resultzh.png" alt="resultpage">
-<img src="screenshots/processzh.png" alt="processing">
+<img src="screenshots/mainzh.png" alt="主页">
+<img src="screenshots/mappingzh.png" alt="添加对应关系">
+<img src="screenshots/resultzh.png" alt="结果页">
+<img src="screenshots/processzh.png" alt="运行中">
 
 # 开始使用
 
-[![最新版本](https://img.shields.io/badge/Releases-latest-blue?style=for-the-badge&logo=github)](https://github.com/ERSAN-exe/Serva/releases/latest)
+[![最新版本](https://img.shields.io/badge/Releases-最新版-blue?style=for-the-badge&logo=github)](https://github.com/ERSAN-exe/Serva/releases/latest)
 
 > 应用已包含所需运行时
 

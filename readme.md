@@ -1,6 +1,6 @@
 <div align="right">
 
-[🇨🇳中文](readme_zh.md)
+[🇨🇳简体中文](readme_zh.md)
 
  </div>
 
@@ -16,7 +16,7 @@
 
 <p>
 
-![Platform](https://img.shields.io/badge/Windows-x64%20%7C%20ARM64-blue) ![OS](https://img.shields.io/badge/Windows-10%20(1809%2B)%20%7C%2011-blue)   ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)      ![Language](https://img.shields.io/badge/Language-C%23-239120?logo=csharp&logoColor=white)      ![License](https://img.shields.io/badge/license-GPL--3.0-orange?logo=opensourceinitiative)
+![Platform](https://img.shields.io/badge/Windows%2011-x64%20%7C%20ARM64-blue)  ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)      ![Language](https://img.shields.io/badge/Language-C%23-239120?logo=csharp&logoColor=white)      ![License](https://img.shields.io/badge/license-GPL--3.0-orange?logo=opensourceinitiative)
 
 </p>
 
@@ -24,9 +24,9 @@
 
 # Introduction
 
-**Serva — Modern File Comparison & Synchronization for Windows**
+**Serva — File Comparison & Synchronization**
 
-Serva is a lightweight, high-performance folder comparison and file synchronization desktop application designed natively for Windows 10 and Windows 11. Built on top of WinUI 3 and .NET 10, Serva provides a clean, fluent interface to help you effortlessly compare directories, preview synchronization plans, and keep your local folders and external drives in sync.
+Serva is a simple file comparison and  synchronization application designed for Windows 11. 
 
 # Screenshots
 
