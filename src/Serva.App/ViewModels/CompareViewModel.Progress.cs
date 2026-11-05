@@ -97,7 +97,8 @@ public sealed partial class CompareViewModel
         }
 
         SyncOptions options = _settings.Options;
-        var matcher = new ExcludeMatcher(options.ExcludePatterns, options.IncludePatterns);
+        var matcher = new ExcludeMatcher(
+            options.ExcludePatterns, options.IncludePatterns, options.AlwaysIncludePatterns);
         string volumeSerial = device.VolumeSerial;
 
         try

@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using Serva.Core.Services;
 
 namespace Serva.App.Localization;
 
@@ -160,7 +161,7 @@ public sealed class AppText : INotifyPropertyChanged
     public string FilterOverwritten => T("Will be overwritten", "将被覆盖");
 
     /// <summary>结果表筛选下拉菜单：将删除的项目。</summary>
-    public string FilterDeletions => T("To be deleted", "将删除的项目");
+    public string FilterDeletions => T("To be deleted", "将删除");
 
     public string ColumnFileName => T("File name", "文件名");
 
@@ -184,6 +185,9 @@ public sealed class AppText : INotifyPropertyChanged
     // ============================ 设置页 ============================
 
     public string SettingsTitle => T("Settings", "设置");
+
+    /// <summary>设置页「关于」小节的标题。</summary>
+    public string AboutSection => T("About", "关于");
 
     /// <summary>设置页：外观与语言合并成的一张卡片。</summary>
     public string AppearanceLanguageSection => T("Appearance and language", "外观与语言");
@@ -226,15 +230,44 @@ public sealed class AppText : INotifyPropertyChanged
         "Keep temporary copies of overwritten files for undo",
         "允许覆盖后保留临时副本用于撤销");
 
-    public string ExcludeRulesSection => T("Exclude rules", "排除规则");
+    public string ExcludeRulesSection => T("File (folder) rules", "文件（夹）规则");
 
-    public string IncludeRulesLabel => T("Include-only rules", "仅包含规则");
+    /// <summary>规则卡片里第一组小标题：排除规则。</summary>
+    public string ExcludeRulesLabel => T("Excluded files", "排除的文件");
+
+    /// <summary>规则卡片里第二组小标题：包含规则（默认含 <c>.minecraft</c>，可以删除）。</summary>
+    public string IncludeRulesLabel => T("Included files", "包含的文件");
 
     public string NewRulePlaceholder => T("New rule, e.g. **/node_modules/**", "新增规则，例如 **/node_modules/**");
 
     public string AddAsExclude => T("Add as exclude", "添加为排除");
 
-    public string AddAsInclude => T("Add as include", "添加为仅包含");
+    public string AddAsInclude => T("Add as include", "添加为包含");
+
+    /// <summary>规则校验失败的红色小字（<paramref name="pattern"/> 是用户输入的内容）。</summary>
+    public string RuleError(RuleValidationError error, string pattern) => error switch
+    {
+        RuleValidationError.Empty => T("Enter a rule first.", "请先输入规则内容。"),
+        RuleValidationError.TooLong => F(
+            "Rule is too long (max {0} characters).",
+            "规则过长（最多 {0} 个字符）。",
+            RuleValidator.MaxLength),
+        RuleValidationError.InvalidCharacters => T(
+            "Rule contains invalid characters (such as < > \" | :).",
+            "规则含有非法字符（例如 < > \" | :）。"),
+        RuleValidationError.WildcardOnly => T(
+            "A rule consisting of wildcards only would match everything.",
+            "规则不能只由通配符组成。"),
+        RuleValidationError.Duplicate => F(
+            "Rule \"{0}\" already exists.",
+            "规则「{0}」已存在。",
+            pattern),
+        RuleValidationError.DuplicateInOtherList => F(
+            "Rule \"{0}\" is already used by the other list — a rule can't be both excluded and included.",
+            "规则「{0}」已经在另一组规则里了（同一条规则不能既排除又包含）。",
+            pattern),
+        _ => string.Empty,
+    };
 
     // ============================ 固定文件夹 ============================
 

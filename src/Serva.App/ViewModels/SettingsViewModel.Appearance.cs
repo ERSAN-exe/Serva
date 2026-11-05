@@ -16,6 +16,12 @@ public sealed partial class SettingsViewModel
         };
         set
         {
+            // 下拉框换选项（换语言时重新取文案）会先给出 -1，不当成「改回跟随系统」。
+            if (value < 0)
+            {
+                return;
+            }
+
             string theme = value switch
             {
                 1 => AppearanceService.LightTheme,

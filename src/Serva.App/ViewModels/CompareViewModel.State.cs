@@ -428,9 +428,9 @@ public sealed partial class CompareViewModel
     /// </summary>
     internal PlanActionCounts RunSummary => PlanActionCounts.From(_plan);
 
-    /// <summary>「执行前确认」弹窗的第一行：「将对 N 个文件进行操作：」。</summary>
+    /// <summary>「执行前确认」弹窗的第一行：「将对 N 个文件进行操作：」（只算真的会执行的文件）。</summary>
     public string RunSummaryTotalText =>
-        Text.F("{0} file(s) will be processed:", "将对 {0} 个文件进行操作：", RunSummary.Total);
+        Text.F("{0} file(s) will be processed:", "将对 {0} 个文件进行操作：", RunSummary.Operated);
 
     /// <summary>
     /// 「执行前确认」弹窗里的逐行统计（小号浅灰）。数量为 0 的行不显示。
@@ -457,7 +457,7 @@ public sealed partial class CompareViewModel
         }
 
         AddLine(summary.Delete, "{0} file(s) will be deleted", "{0} 个文件将被删除");
-        AddLine(summary.Skip, "{0} file(s) will be left untouched", "{0} 个文件不会执行操作");
+        AddLine(summary.Skip, "{0} more file(s) will be left untouched", "另有 {0} 个文件不会执行操作");
 
         return lines;
 

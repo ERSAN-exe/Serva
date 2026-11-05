@@ -39,7 +39,8 @@ public sealed partial class CompareViewModel
         try
         {
             SyncOptions options = _settings.Options;
-            var matcher = new ExcludeMatcher(options.ExcludePatterns, options.IncludePatterns);
+            var matcher = new ExcludeMatcher(
+                options.ExcludePatterns, options.IncludePatterns, options.AlwaysIncludePatterns);
             var progress = new Progress<ScanProgress>(p => SetScanSummary(() => Text.F(
                 "Scanning: {0:N0} item(s) · {1}",
                 "正在扫描：{0:N0} 项 · {1}",

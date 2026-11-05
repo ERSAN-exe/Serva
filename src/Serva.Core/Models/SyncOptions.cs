@@ -51,11 +51,21 @@ public sealed class SyncOptions
     /// </summary>
     public ConflictResolution ConflictResolution { get; set; } = ConflictResolution.KeepBoth;
 
-    /// <summary>排除规则（glob，支持 * 与 **）。默认含 12 条系统规则。</summary>
+    /// <summary>排除规则（glob，支持 * 与 **）。默认含内置的文件夹 / 文件规则。</summary>
     public List<string> ExcludePatterns { get; set; } = [.. ExcludeMatcher.DefaultExcludePatterns];
 
     /// <summary>仅包含规则；非空时，未命中的文件一律忽略。</summary>
     public List<string> IncludePatterns { get; set; } = [];
+
+    /// <summary>
+    /// 「包含的文件」规则：命中的路径<strong>不会被排除</strong>（优先于排除规则），
+    /// 并且即使带「隐藏 / 系统」属性（如 <c>.minecraft</c>）也照常扫描。
+    /// <para>
+    /// 默认值来自 <see cref="ExcludeMatcher.DefaultIncludedPatterns"/>；与排除规则不同，
+    /// 这里<strong>允许用户删除</strong>（设置页「包含的文件」里的小 ×），删掉后不会自动补回。
+    /// </para>
+    /// </summary>
+    public List<string> AlwaysIncludePatterns { get; set; } = [.. ExcludeMatcher.DefaultIncludedPatterns];
 
     /// <summary>设备被拔出时立即中止执行（已完成的部分保留）。</summary>
     public bool AbortOnDeviceDisconnect { get; set; } = true;
@@ -87,6 +97,10 @@ public sealed class SyncOptions
                 ExcludePatterns.Add(rule);
             }
         }
+
+        // 「包含的文件」不在这里补默认值：用户可以在设置页把 .minecraft 删掉，
+        // 删掉之后就不该再被自动加回来。旧设置文件里没有这一项时，
+        // 反序列化会保留属性初始化器给出的默认值。
     }
 
     public SyncOptions Clone() => new()
@@ -101,6 +115,7 @@ public sealed class SyncOptions
         ConflictResolution = ConflictResolution,
         ExcludePatterns = [.. ExcludePatterns],
         IncludePatterns = [.. IncludePatterns],
+        AlwaysIncludePatterns = [.. AlwaysIncludePatterns],
         AbortOnDeviceDisconnect = AbortOnDeviceDisconnect,
     };
 }

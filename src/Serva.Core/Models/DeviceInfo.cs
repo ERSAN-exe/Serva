@@ -114,6 +114,20 @@ public sealed record DeviceInfo(
     public string CapacityText =>
         CoreText.Format("{0} free of {1}", "{0} 可用 / {1}", Format(FreeSpace), Format(TotalSize));
 
+    /// <summary>「G:\ 0123 - 119.2 GB」式标题：名称 + 总容量（设置页设备卡片的大字）。</summary>
+    public string TitleText => $"{DisplayName} - {Format(TotalSize)}";
+
+    /// <summary>设备种类：「移动设备」/「本机硬盘」。</summary>
+    public string KindText => IsRemovableStorage
+        ? CoreText.Get("Removable device", "移动设备")
+        : CoreText.Get("Local disk", "本机硬盘");
+
+    /// <summary>「已使用 25 GB」。</summary>
+    public string UsedText => CoreText.Format("Used {0}", "已使用 {0}", Format(TotalSize - FreeSpace));
+
+    /// <summary>「94 GB 可用」。</summary>
+    public string FreeText => CoreText.Format("{0} free", "{0} 可用", Format(FreeSpace));
+
     /// <summary>已用空间百分比（0–100），用于容量进度条。</summary>
     public double UsedPercent => TotalSize <= 0
         ? 0

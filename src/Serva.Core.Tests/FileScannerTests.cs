@@ -75,6 +75,36 @@ public class FileScannerTests
     }
 
     [Fact]
+    public void ExplicitlyIncludedHiddenFolder_IsScanned()
+    {
+        // 用户把隐藏文件夹加成「仅包含」：说明他就要这个文件夹，不能因为隐藏而跳过。
+        using var tree = new TestTree("scan-hidden-include");
+        tree.Add(".git/config", "G");
+        tree.Add(".git/HEAD", "H");
+        File.SetAttributes(Path.Combine(tree.Root, ".git"), FileAttributes.Hidden);
+
+        var matcher = new ExcludeMatcher(includePatterns: [".git/**"]);
+        ScanResult result = new FileScanner(matcher, skipHiddenAndSystem: true).Scan(tree.Root);
+
+        Assert.Equal(2, result.FileCount);
+        Assert.Contains(".git/config", result.Files.Keys);
+    }
+
+    [Fact]
+    public void MinecraftFolder_IsScannedByDefault()
+    {
+        // .minecraft 以点开头（平时算隐藏），但在内置的「隐藏也照扫」清单里。
+        using var tree = new TestTree("scan-minecraft");
+        tree.Add(".minecraft/saves/world.dat", "W");
+        tree.Add("visible.txt", "V");
+
+        ScanResult result = new FileScanner(new ExcludeMatcher(), skipHiddenAndSystem: true).Scan(tree.Root);
+
+        Assert.Equal(2, result.FileCount);
+        Assert.Contains(".minecraft/saves/world.dat", result.Files.Keys);
+    }
+
+    [Fact]
     public void SingleFileSourceUsesFileNameAsKey()
     {
         using var tree = new TestTree("scan-single");

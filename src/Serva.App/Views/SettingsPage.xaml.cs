@@ -31,12 +31,46 @@ public sealed partial class SettingsPage : Page
 
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
+
+        // 换语言后「主题 / 语言」两个下拉框收起时显示的文案不会自己刷新（见 RefreshComboBoxTexts）。
+        ViewModel.LocalizedTextsRefreshed += (_, _) => RefreshComboBoxTexts();
+
+        // 首次显示时回到顶部：新增规则输入框拿到焦点会把整页滚到底部。
+        SettingsScroll.Loaded += (_, _) => SettingsScroll.ChangeView(null, 0, null);
     }
 
     public SettingsViewModel ViewModel { get; }
 
     /// <summary>当前语言的界面文案（XAML 里用 <c>{x:Bind Text.Xxx, Mode=OneWay}</c>）。</summary>
     public AppText Text => AppText.Current;
+
+    /// <summary>
+    /// 语言切换后刷新两个下拉框「收起时显示」的文案。
+    /// <para>
+    /// WinUI 的 <c>ComboBox</c> 只在选择变化时重新取一次「已选项」的内容：
+    /// 换语言后选项本身（<c>ComboBoxItem.Content</c>）已经换成新文案，展开的列表也是新的，
+    /// 但收起时显示的那一行仍是旧文案。这里让选择先清空再选回同一项，逼它重新取一次
+    /// （视图模型会忽略这个临时的 -1，见 <c>SettingsViewModel.ThemeIndex / LanguageIndex</c>）。
+    /// </para>
+    /// </summary>
+    private void RefreshComboBoxTexts()
+    {
+        RefreshComboBoxText(ThemeCombo);
+        RefreshComboBoxText(LanguageCombo);
+    }
+
+    private static void RefreshComboBoxText(ComboBox combo)
+    {
+        int index = combo.SelectedIndex;
+
+        if (index < 0)
+        {
+            return;
+        }
+
+        combo.SelectedIndex = -1;
+        combo.SelectedIndex = index;
+    }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
@@ -52,7 +86,6 @@ public sealed partial class SettingsPage : Page
 
     private void OnUpdatesChanged(object? sender, EventArgs e) => ViewModel.RefreshUpdateState();
 
-    /// <summary>关闭状态提示条：清掉视图模型里的句子，切换页面后不再出现。</summary>
     /// <summary>防止连点同时弹出两个对话框（WinUI 只允许一个 ContentDialog）。</summary>
     private bool _pickingPinnedFolder;
 
@@ -97,8 +130,6 @@ public sealed partial class SettingsPage : Page
             ViewModel.RemovePinnedFolder(folder);
         }
     }
-
-    private void Status_CloseClick(InfoBar sender, object args) => ViewModel.DismissStatus();
 
     /// <summary>
     /// 关闭「删除时移入回收文件夹」意味着删除不可找回，先警告一次；

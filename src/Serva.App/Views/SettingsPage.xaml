@@ -10,37 +10,90 @@
     mc:Ignorable="d"
     Background="Transparent">
 
+    <!--
+        设置页排版（参考 Windows 11 设置）：
+        · 每个设置项是一张独立的小卡片（图标 + 名称/说明 + 右侧控件）。
+        · 组标题在卡片外面；组内卡片之间 8，组与组之间 28。
+    -->
     <Page.Resources>
+        <Style x:Key="SettingsCard" TargetType="Border">
+            <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+            <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="16,12" />
+            <!-- 每个选项框统一高度，视觉上对齐 -->
+            <Setter Property="MinHeight" Value="64" />
+        </Style>
+
+        <!-- 整块的容器（固定文件夹 / 排除规则）：标题在框内，下面一条分隔线 -->
+        <Style x:Key="SettingsPanel" TargetType="Border">
+            <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+            <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
+
+        <Style x:Key="SettingsRowLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+
+        <Style x:Key="SettingsHint" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+
+        <Style x:Key="SettingsRowIcon" TargetType="FontIcon">
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
         <Style x:Key="ServaFieldLabel" TargetType="TextBlock">
             <Setter Property="FontSize" Value="12" />
             <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
             <Setter Property="Margin" Value="0,0,0,6" />
         </Style>
 
+        <!-- 一台已连接的设备（种类 + 大标题 + 占用条 + 已用/可用） -->
         <DataTemplate x:Key="DeviceCardTemplate" x:DataType="models:DeviceInfo">
             <Border
-                MinWidth="220"
-                Margin="0,0,12,12"
-                Padding="12"
-                Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
-                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                BorderThickness="1"
-                CornerRadius="8">
-                <StackPanel Spacing="6">
+                Margin="0,0,0,8"
+                Padding="16,12"
+                Style="{StaticResource SettingsPanel}">
+                <StackPanel Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon
+                            VerticalAlignment="Center"
+                            FontSize="12"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Glyph="{x:Bind Glyph}" />
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            Style="{StaticResource SettingsHint}"
+                            Text="{x:Bind KindText}" />
+                    </StackPanel>
+
                     <TextBlock
-                        FontSize="13"
+                        FontSize="18"
                         FontWeight="SemiBold"
-                        Text="{x:Bind DisplayName}"
+                        Text="{x:Bind TitleText}"
                         TextTrimming="CharacterEllipsis" />
+
                     <ProgressBar Maximum="100" Value="{x:Bind UsedPercent}" />
-                    <TextBlock
-                        FontSize="11"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Text="{x:Bind CapacityText}" />
+
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                        <TextBlock Style="{StaticResource SettingsHint}" Text="{x:Bind UsedText}" />
+                        <TextBlock
+                            Grid.Column="1"
+                            Style="{StaticResource SettingsHint}"
+                            Text="{x:Bind FreeText}" />
+                    </Grid>
                 </StackPanel>
             </Border>
         </DataTemplate>
-
         <DataTemplate x:Key="ExcludeRuleTemplate" x:DataType="vm:ExcludeRuleViewModel">
             <Border
                 Margin="0,0,8,8"
@@ -89,288 +142,408 @@
                 </StackPanel>
             </Border>
         </DataTemplate>
+
         <DataTemplate x:Key="PinnedFolderTemplate" x:DataType="x:String">
-            <Border Margin="0,0,0,8" Padding="10,6" Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="8">
-                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                    <FontIcon VerticalAlignment="Center" FontSize="12" Glyph="&#xE840;" />
-                    <TextBlock Grid.Column="1" VerticalAlignment="Center" FontSize="12" Text="{x:Bind}" TextTrimming="CharacterEllipsis" />
-                    <Button Grid.Column="2" Padding="0" Background="Transparent" BorderThickness="0" Click="RemovePinnedFolder_Click" Tag="{x:Bind}">
+            <Border Margin="0,0,0,8" Style="{StaticResource SettingsCard}">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                    <FontIcon Style="{StaticResource SettingsRowIcon}" Glyph="&#xE8B7;" />
+                    <TextBlock
+                        Grid.Column="1"
+                        VerticalAlignment="Center"
+                        FontSize="13"
+                        Text="{x:Bind}"
+                        TextTrimming="CharacterEllipsis" />
+                    <Button
+                        Grid.Column="2"
+                        Padding="0"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Click="RemovePinnedFolder_Click"
+                        Tag="{x:Bind}">
                         <FontIcon FontSize="12" Glyph="&#xE711;" />
                     </Button>
                 </Grid>
             </Border>
         </DataTemplate>
-
     </Page.Resources>
-
-    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled">
+    <ScrollViewer
+        x:Name="SettingsScroll"
+        VerticalScrollBarVisibility="Auto"
+        HorizontalScrollMode="Disabled">
         <StackPanel
-            MaxWidth="1000"
+            MaxWidth="880"
             Padding="{StaticResource ServaPagePadding}"
             HorizontalAlignment="Left"
-            Spacing="16">
+            Spacing="28">
 
             <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="{x:Bind Text.SettingsTitle, Mode=OneWay}" />
 
-            <InfoBar
-                IsClosable="True"
-                IsOpen="{x:Bind ViewModel.HasStatus, Mode=OneWay}"
-                Message="{x:Bind ViewModel.StatusMessage, Mode=OneWay}"
-                CloseButtonClick="Status_CloseClick"
-                Severity="{x:Bind ViewModel.StatusSeverity, Mode=OneWay}" />
+            <!-- ============================ 外观 ============================ -->
+            <StackPanel Spacing="8">
+                <TextBlock Style="{StaticResource ServaSectionTitle}" Text="{x:Bind Text.AppearanceLanguageSection, Mode=OneWay}" />
 
-            <!-- ==================== 外观与语言（同一张卡片） ==================== -->
-            <Border Style="{StaticResource ServaCard}">
-                <StackPanel Spacing="14">
-                    <TextBlock Style="{StaticResource ServaSectionTitle}" Text="{x:Bind Text.AppearanceLanguageSection, Mode=OneWay}" />
+                <Border Style="{StaticResource SettingsCard}">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16">
+                        <FontIcon Style="{StaticResource SettingsRowIcon}" Glyph="&#xE790;" />
+                        <TextBlock
+                            Grid.Column="1"
+                            VerticalAlignment="Center"
+                            Style="{StaticResource SettingsRowLabel}"
+                            Text="{x:Bind Text.ThemeLabel, Mode=OneWay}" />
+                        <ComboBox
+                            x:Name="ThemeCombo"
+                            Grid.Column="2"
+                            MinWidth="200"
+                            VerticalAlignment="Center"
+                            SelectedIndex="{x:Bind ViewModel.ThemeIndex, Mode=TwoWay}">
+                            <ComboBoxItem Content="{x:Bind Text.ThemeSystem, Mode=OneWay}" />
+                            <ComboBoxItem Content="{x:Bind Text.ThemeLight, Mode=OneWay}" />
+                            <ComboBoxItem Content="{x:Bind Text.ThemeDark, Mode=OneWay}" />
+                        </ComboBox>
+                    </Grid>
+                </Border>
 
-                    <StackPanel>
-                        <TextBlock Style="{StaticResource ServaFieldLabel}" Text="{x:Bind Text.ThemeLabel, Mode=OneWay}" />
-                        <RadioButtons MaxColumns="3" SelectedIndex="{x:Bind ViewModel.ThemeIndex, Mode=TwoWay}">
-                            <RadioButton Content="{x:Bind Text.ThemeSystem, Mode=OneWay}" />
-                            <RadioButton Content="{x:Bind Text.ThemeLight, Mode=OneWay}" />
-                            <RadioButton Content="{x:Bind Text.ThemeDark, Mode=OneWay}" />
-                        </RadioButtons>
-                    </StackPanel>
+                <Border Style="{StaticResource SettingsCard}">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16">
+                        <FontIcon Style="{StaticResource SettingsRowIcon}" Glyph="&#xE774;" />
+                        <TextBlock
+                            Grid.Column="1"
+                            VerticalAlignment="Center"
+                            Style="{StaticResource SettingsRowLabel}"
+                            Text="{x:Bind Text.LanguageLabel, Mode=OneWay}" />
+                        <ComboBox
+                            x:Name="LanguageCombo"
+                            Grid.Column="2"
+                            MinWidth="200"
+                            VerticalAlignment="Center"
+                            SelectedIndex="{x:Bind ViewModel.LanguageIndex, Mode=TwoWay}">
+                            <ComboBoxItem Content="{x:Bind Text.LanguageSystem, Mode=OneWay}" />
+                            <ComboBoxItem Content="{x:Bind Text.LanguageChinese, Mode=OneWay}" />
+                            <ComboBoxItem Content="{x:Bind Text.LanguageEnglish, Mode=OneWay}" />
+                        </ComboBox>
+                    </Grid>
+                </Border>
+            </StackPanel>
 
-                    <StackPanel>
-                        <TextBlock Style="{StaticResource ServaFieldLabel}" Text="{x:Bind Text.LanguageLabel, Mode=OneWay}" />
-                        <RadioButtons MaxColumns="3" SelectedIndex="{x:Bind ViewModel.LanguageIndex, Mode=TwoWay}">
-                            <RadioButton Content="{x:Bind Text.LanguageSystem, Mode=OneWay}" />
-                            <RadioButton Content="{x:Bind Text.LanguageChinese, Mode=OneWay}" />
-                            <RadioButton Content="{x:Bind Text.LanguageEnglish, Mode=OneWay}" />
-                        </RadioButtons>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
-
-            <!-- ============================== 设备 ============================== -->
-            <Border Style="{StaticResource ServaCard}">
-                <StackPanel Spacing="10">
+            <!-- ============================ 设备 ============================ -->
+            <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
                     <TextBlock Style="{StaticResource ServaSectionTitle}" Text="{x:Bind Text.DevicesTitle, Mode=OneWay}" />
-
-                    <TextBlock
-                        FontSize="13"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Text="{x:Bind Text.NoDeviceDetected, Mode=OneWay}"
-                        Visibility="{x:Bind ViewModel.DeviceEmptyVisibility, Mode=OneWay}" />
-
-                    <ItemsRepeater ItemTemplate="{StaticResource DeviceCardTemplate}" ItemsSource="{x:Bind ViewModel.Devices}">
-                        <ItemsRepeater.Layout>
-                            <UniformGridLayout
-                                ItemsStretch="Fill"
-                                MinColumnSpacing="0"
-                                MinItemWidth="236"
-                                MinRowSpacing="0" />
-                        </ItemsRepeater.Layout>
-                    </ItemsRepeater>
-
-                    <!-- 允许同时用两块可移动设备（默认开启） -->
-                    <ToggleSwitch
-                        IsOn="{x:Bind ViewModel.AllowTwoRemovableDevices, Mode=TwoWay}"
-                        OffContent="{x:Bind Text.OptionAllowTwoRemovableDevices, Mode=OneWay}"
-                        OnContent="{x:Bind Text.OptionAllowTwoRemovableDevices, Mode=OneWay}" />
-
-                    <!-- 允许把本机硬盘（非系统盘）也当作同步目标 -->
-                    <ToggleSwitch
-                        IsOn="{x:Bind ViewModel.AllowLocalDrives, Mode=TwoWay}"
-                        OffContent="{x:Bind Text.OptionAllowLocalDrives, Mode=OneWay}"
-                        OnContent="{x:Bind Text.OptionAllowLocalDrives, Mode=OneWay}" />
-
-                    <!-- 刷新按钮固定在左下角 -->
                     <Button
-                        HorizontalAlignment="Left"
+                        Grid.Column="1"
+                        VerticalAlignment="Center"
                         Command="{x:Bind ViewModel.RefreshDevicesCommand}"
                         Content="{x:Bind Text.Refresh, Mode=OneWay}" />
-                </StackPanel>
-            </Border>
+                </Grid>
 
-            <!-- ============================ 执行策略 ============================ -->
-            <Border Style="{StaticResource ServaCard}">
-                <StackPanel Spacing="10">
-                    <TextBlock Style="{StaticResource ServaSectionTitle}" Text="{x:Bind Text.ActionPolicy, Mode=OneWay}" />
+                <TextBlock
+                    Style="{StaticResource SettingsHint}"
+                    Text="{x:Bind Text.NoDeviceDetected, Mode=OneWay}"
+                    Visibility="{x:Bind ViewModel.DeviceEmptyVisibility, Mode=OneWay}" />
 
-                    <ToggleSwitch
-                        IsOn="{x:Bind ViewModel.KeepOverwriteBackup, Mode=TwoWay}"
-                        OffContent="{x:Bind Text.OptionKeepOverwriteBackup, Mode=OneWay}"
-                        OnContent="{x:Bind Text.OptionKeepOverwriteBackup, Mode=OneWay}"
-                        Toggled="KeepOverwriteBackup_Toggled" />
+                <ItemsRepeater ItemTemplate="{StaticResource DeviceCardTemplate}" ItemsSource="{x:Bind ViewModel.Devices}">
+                    <ItemsRepeater.Layout>
+                        <StackLayout Spacing="0" />
+                    </ItemsRepeater.Layout>
+                </ItemsRepeater>
 
-                    <ToggleSwitch
-                        IsOn="{x:Bind ViewModel.MirrorDelete, Mode=TwoWay}"
-                        OffContent="{x:Bind Text.OptionMirrorDelete, Mode=OneWay}"
-                        OnContent="{x:Bind Text.OptionMirrorDelete, Mode=OneWay}" />
-                    <ToggleSwitch
-                        IsEnabled="{x:Bind ViewModel.TrashOptionEnabled, Mode=OneWay}"
-                        IsOn="{x:Bind ViewModel.UseTrashFolder, Mode=TwoWay}"
-                        OffContent="{x:Bind Text.OptionRecycleBin, Mode=OneWay}"
-                        OnContent="{x:Bind Text.OptionRecycleBin, Mode=OneWay}"
-                        Toggled="UseTrashFolder_Toggled" />
-                </StackPanel>
-            </Border>
-
-            <!-- ============================ 排除规则 ============================ -->
-            <Border Style="{StaticResource ServaCard}">
-                <StackPanel Spacing="12">
-                    <StackPanel>
-                        <TextBlock Style="{StaticResource ServaSectionTitle}" Text="{x:Bind Text.ExcludeRulesSection, Mode=OneWay}" />
+                <Border Style="{StaticResource SettingsCard}">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16">
+                        <FontIcon Style="{StaticResource SettingsRowIcon}" Glyph="&#xE88E;" />
                         <TextBlock
-                            FontSize="12"
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                            Text="{x:Bind ViewModel.ExcludeCaption, Mode=OneWay}" />
-                    </StackPanel>
-
-                    <ScrollViewer HorizontalScrollBarVisibility="Auto" HorizontalScrollMode="Enabled" VerticalScrollMode="Disabled">
-                        <ItemsControl ItemTemplate="{StaticResource ExcludeRuleTemplate}" ItemsSource="{x:Bind ViewModel.ExcludeRules}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <StackPanel Orientation="Horizontal" />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                        </ItemsControl>
-                    </ScrollViewer>
-
-                    <StackPanel Spacing="8">
-                        <TextBlock Style="{StaticResource ServaFieldLabel}" Text="{x:Bind Text.IncludeRulesLabel, Mode=OneWay}" />
-                        <ItemsControl ItemTemplate="{StaticResource IncludeRuleTemplate}" ItemsSource="{x:Bind ViewModel.IncludeRules}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <StackPanel Orientation="Horizontal" />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                        </ItemsControl>
-                    </StackPanel>
-
-                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
-                        <TextBox
-                            Grid.Column="0"
-                            PlaceholderText="{x:Bind Text.NewRulePlaceholder, Mode=OneWay}"
-                            Text="{x:Bind ViewModel.NewRuleText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                        <Button
                             Grid.Column="1"
-                            Command="{x:Bind ViewModel.AddExcludeRuleCommand}"
-                            Content="{x:Bind Text.AddAsExclude, Mode=OneWay}" />
+                            VerticalAlignment="Center"
+                            Style="{StaticResource SettingsRowLabel}"
+                            Text="{x:Bind Text.OptionAllowTwoRemovableDevices, Mode=OneWay}" />
+                        <ToggleSwitch
+                            Grid.Column="2"
+                            MinWidth="0"
+                            VerticalAlignment="Center"
+                            IsOn="{x:Bind ViewModel.AllowTwoRemovableDevices, Mode=TwoWay}" />
+                    </Grid>
+                </Border>
+
+                <Border Style="{StaticResource SettingsCard}">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16">
+                        <FontIcon Style="{StaticResource SettingsRowIcon}" Glyph="&#xEDA2;" />
+                        <TextBlock
+                            Grid.Column="1"
+                            VerticalAlignment="Center"
+                            Style="{StaticResource SettingsRowLabel}"
+                            Text="{x:Bind Text.OptionAllowLocalDrives, Mode=OneWay}" />
+                        <ToggleSwitch
+                            Grid.Column="2"
+                            MinWidth="0"
+                            VerticalAlignment="Center"
+                            IsOn="{x:Bind ViewModel.AllowLocalDrives, Mode=TwoWay}" />
+                    </Grid>
+                </Border>
+            </StackPanel>
+
+            <!-- ========================== 执行策略 ========================== -->
+            <StackPanel Spacing="8">
+                <TextBlock Style="{StaticResource ServaSectionTitle}" Text="{x:Bind Text.ActionPolicy, Mode=OneWay}" />
+
+                <Border Style="{StaticResource SettingsCard}">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16">
+                        <FontIcon Style="{StaticResource SettingsRowIcon}" Glyph="&#xE81C;" />
+                        <TextBlock
+                            Grid.Column="1"
+                            VerticalAlignment="Center"
+                            Style="{StaticResource SettingsRowLabel}"
+                            Text="{x:Bind Text.OptionKeepOverwriteBackup, Mode=OneWay}" />
+                        <ToggleSwitch
+                            Grid.Column="2"
+                            MinWidth="0"
+                            VerticalAlignment="Center"
+                            IsOn="{x:Bind ViewModel.KeepOverwriteBackup, Mode=TwoWay}"
+                            Toggled="KeepOverwriteBackup_Toggled" />
+                    </Grid>
+                </Border>
+
+                <Border Style="{StaticResource SettingsCard}">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16">
+                        <FontIcon Style="{StaticResource SettingsRowIcon}" Glyph="&#xE74D;" />
+                        <TextBlock
+                            Grid.Column="1"
+                            VerticalAlignment="Center"
+                            Style="{StaticResource SettingsRowLabel}"
+                            Text="{x:Bind Text.OptionMirrorDelete, Mode=OneWay}" />
+                        <ToggleSwitch
+                            Grid.Column="2"
+                            MinWidth="0"
+                            VerticalAlignment="Center"
+                            IsOn="{x:Bind ViewModel.MirrorDelete, Mode=TwoWay}" />
+                    </Grid>
+                </Border>
+
+                <Border Style="{StaticResource SettingsCard}">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16">
+                        <FontIcon Style="{StaticResource SettingsRowIcon}" Glyph="&#xE7B8;" />
+                        <TextBlock
+                            Grid.Column="1"
+                            VerticalAlignment="Center"
+                            Style="{StaticResource SettingsRowLabel}"
+                            Text="{x:Bind Text.OptionRecycleBin, Mode=OneWay}" />
+                        <ToggleSwitch
+                            Grid.Column="2"
+                            MinWidth="0"
+                            VerticalAlignment="Center"
+                            IsEnabled="{x:Bind ViewModel.TrashOptionEnabled, Mode=OneWay}"
+                            IsOn="{x:Bind ViewModel.UseTrashFolder, Mode=TwoWay}"
+                            Toggled="UseTrashFolder_Toggled" />
+                    </Grid>
+                </Border>
+            </StackPanel>
+
+            <!-- ========================= 固定文件夹 ========================= -->
+            <StackPanel Spacing="8">
+                <TextBlock Style="{StaticResource ServaSectionTitle}" Text="{x:Bind Text.PinnedFoldersSection, Mode=OneWay}" />
+
+                <Border Style="{StaticResource SettingsPanel}">
+                    <StackPanel>
+                        <Grid Padding="16,12" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16">
+                            <FontIcon Style="{StaticResource SettingsRowIcon}" Glyph="&#xE840;" />
+                            <TextBlock
+                                Grid.Column="1"
+                                VerticalAlignment="Center"
+                                Style="{StaticResource SettingsHint}"
+                                Text="{x:Bind Text.PinnedFoldersHint, Mode=OneWay}" />
+                            <Button
+                                Grid.Column="2"
+                                VerticalAlignment="Center"
+                                Click="AddPinnedFolder_Click"
+                                Content="{x:Bind Text.AddPinnedFolder, Mode=OneWay}" />
+                        </Grid>
+
+                        <Border Height="1" Background="{ThemeResource CardStrokeColorDefaultBrush}" />
+
+                        <StackPanel Padding="16,12" Spacing="4">
+                            <TextBlock
+                                Style="{StaticResource SettingsHint}"
+                                Text="{x:Bind Text.NoPinnedFolders, Mode=OneWay}"
+                                Visibility="{x:Bind ViewModel.PinnedEmptyVisibility, Mode=OneWay}" />
+
+                            <ItemsControl ItemTemplate="{StaticResource PinnedFolderTemplate}" ItemsSource="{x:Bind ViewModel.PinnedFolders}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <!-- ========================== 文件夹规则 ========================== -->
+            <StackPanel Spacing="8">
+                <TextBlock Style="{StaticResource ServaSectionTitle}" Text="{x:Bind Text.ExcludeRulesSection, Mode=OneWay}" />
+
+                <Border Style="{StaticResource SettingsPanel}">
+                    <StackPanel>
+                        <Grid Padding="16,12" ColumnDefinitions="Auto,*" ColumnSpacing="16">
+                            <FontIcon Style="{StaticResource SettingsRowIcon}" Glyph="&#xE71B;" />
+                            <TextBlock
+                                Grid.Column="1"
+                                VerticalAlignment="Center"
+                                Style="{StaticResource SettingsHint}"
+                                Text="{x:Bind ViewModel.ExcludeCaption, Mode=OneWay}" />
+                        </Grid>
+
+                        <Border Height="1" Background="{ThemeResource CardStrokeColorDefaultBrush}" />
+
+                        <StackPanel Padding="16,12" Spacing="10">
+                            <!-- 排除的文件 -->
+                            <StackPanel Spacing="4">
+                                <TextBlock Style="{StaticResource ServaFieldLabel}" Text="{x:Bind Text.ExcludeRulesLabel, Mode=OneWay}" />
+                                <ScrollViewer HorizontalScrollBarVisibility="Auto" HorizontalScrollMode="Enabled" VerticalScrollMode="Disabled">
+                                    <ItemsControl ItemTemplate="{StaticResource ExcludeRuleTemplate}" ItemsSource="{x:Bind ViewModel.ExcludeRules}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Orientation="Horizontal" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </StackPanel>
+
+                            <!-- 包含的文件（默认含 .minecraft，可以直接删掉） -->
+                            <StackPanel Spacing="4">
+                                <TextBlock Style="{StaticResource ServaFieldLabel}" Text="{x:Bind Text.IncludeRulesLabel, Mode=OneWay}" />
+                                <ScrollViewer HorizontalScrollBarVisibility="Auto" HorizontalScrollMode="Enabled" VerticalScrollMode="Disabled">
+                                    <ItemsControl ItemTemplate="{StaticResource IncludeRuleTemplate}" ItemsSource="{x:Bind ViewModel.IncludeRules}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Orientation="Horizontal" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </StackPanel>
+
+                            <!-- 新增规则；重复 / 无效时在下面显示红色小字 -->
+                            <StackPanel Spacing="6">
+                                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                                    <TextBox
+                                        Grid.Column="0"
+                                        PlaceholderText="{x:Bind Text.NewRulePlaceholder, Mode=OneWay}"
+                                        Text="{x:Bind ViewModel.NewRuleText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                    <Button
+                                        Grid.Column="1"
+                                        Command="{x:Bind ViewModel.AddExcludeRuleCommand}"
+                                        Content="{x:Bind Text.AddAsExclude, Mode=OneWay}" />
+                                    <Button
+                                        Grid.Column="2"
+                                        Command="{x:Bind ViewModel.AddIncludeRuleCommand}"
+                                        Content="{x:Bind Text.AddAsInclude, Mode=OneWay}" />
+                                </Grid>
+
+                                <TextBlock
+                                    FontSize="12"
+                                    Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                                    Text="{x:Bind ViewModel.RuleErrorText, Mode=OneWay}"
+                                    TextWrapping="Wrap"
+                                    Visibility="{x:Bind ViewModel.RuleErrorVisibility, Mode=OneWay}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <!-- ============================ 更新 ============================ -->
+            <StackPanel Spacing="8">
+                <TextBlock Style="{StaticResource ServaSectionTitle}" Text="{x:Bind Text.UpdateSection, Mode=OneWay}" />
+
+                <Border Style="{StaticResource SettingsCard}">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16">
+                        <FontIcon Style="{StaticResource SettingsRowIcon}" Glyph="&#xE777;" />
+                        <TextBlock
+                            Grid.Column="1"
+                            VerticalAlignment="Center"
+                            Style="{StaticResource SettingsRowLabel}"
+                            Text="{x:Bind Text.OptionCheckUpdates, Mode=OneWay}" />
+                        <ToggleSwitch
+                            Grid.Column="2"
+                            MinWidth="0"
+                            VerticalAlignment="Center"
+                            IsOn="{x:Bind ViewModel.CheckUpdatesOnStartup, Mode=TwoWay}" />
+                    </Grid>
+                </Border>
+
+                <Border Style="{StaticResource SettingsCard}">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16">
+                        <FontIcon Style="{StaticResource SettingsRowIcon}" Glyph="&#xE896;" />
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                            <TextBlock Style="{StaticResource SettingsRowLabel}" Text="{x:Bind Text.CheckForUpdates, Mode=OneWay}" />
+                            <!-- 小字位置显示检查结果（「当前是最新版本」等），不再常驻显示当前版本 -->
+                            <TextBlock
+                                Style="{StaticResource SettingsHint}"
+                                Text="{x:Bind ViewModel.UpdateStatusText, Mode=OneWay}"
+                                Visibility="{x:Bind ViewModel.UpdateStatusVisibility, Mode=OneWay}" />
+                        </StackPanel>
                         <Button
                             Grid.Column="2"
-                            Command="{x:Bind ViewModel.AddIncludeRuleCommand}"
-                            Content="{x:Bind Text.AddAsInclude, Mode=OneWay}" />
-                    </Grid>
-                </StackPanel>
-            </Border>
-
-            <!-- ============================== 固定文件夹 ============================== -->
-            <Border Style="{StaticResource ServaCard}">
-                <StackPanel Spacing="10">
-                    <TextBlock Style="{StaticResource ServaSectionTitle}" Text="{x:Bind Text.PinnedFoldersSection, Mode=OneWay}" />
-                    <TextBlock
-                        FontSize="12"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Text="{x:Bind Text.PinnedFoldersHint, Mode=OneWay}"
-                        TextWrapping="Wrap" />
-                    <TextBlock
-                        FontSize="13"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Text="{x:Bind Text.NoPinnedFolders, Mode=OneWay}"
-                        Visibility="{x:Bind ViewModel.PinnedEmptyVisibility, Mode=OneWay}" />
-                    <ItemsControl ItemTemplate="{StaticResource PinnedFolderTemplate}" ItemsSource="{x:Bind ViewModel.PinnedFolders}" />
-                    <Button
-                        HorizontalAlignment="Left"
-                        Click="AddPinnedFolder_Click"
-                        Content="{x:Bind Text.AddPinnedFolder, Mode=OneWay}" />
-                </StackPanel>
-            </Border>
-
-            <!-- ============================== 更新 ============================== -->
-            <Border Style="{StaticResource ServaCard}">
-                <StackPanel Spacing="10">
-                    <TextBlock Style="{StaticResource ServaSectionTitle}" Text="{x:Bind Text.UpdateSection, Mode=OneWay}" />
-
-                    <ToggleSwitch
-                        IsOn="{x:Bind ViewModel.CheckUpdatesOnStartup, Mode=TwoWay}"
-                        OffContent="{x:Bind Text.OptionCheckUpdates, Mode=OneWay}"
-                        OnContent="{x:Bind Text.OptionCheckUpdates, Mode=OneWay}" />
-
-                    <StackPanel Orientation="Horizontal" Spacing="10">
-                        <Button
                             VerticalAlignment="Center"
                             Click="CheckUpdates_Click"
                             Content="{x:Bind Text.CheckForUpdates, Mode=OneWay}"
                             IsEnabled="{x:Bind ViewModel.CanCheckUpdate, Mode=OneWay}" />
-                        <TextBlock
-                            VerticalAlignment="Center"
-                            FontSize="12"
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                            Text="{x:Bind ViewModel.CurrentVersionText, Mode=OneWay}" />
-                    </StackPanel>
+                    </Grid>
+                </Border>
 
+                <!-- 发现新版本：蓝色链接打开 GitHub 上最新的 Release 页面 -->
+                <HyperlinkButton
+                    Padding="0"
+                    NavigateUri="{x:Bind ViewModel.UpdateUri, Mode=OneWay}"
+                    Visibility="{x:Bind ViewModel.UpdateLinkVisibility, Mode=OneWay}">
                     <TextBlock
-                        FontSize="12"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Text="{x:Bind ViewModel.UpdateStatusText, Mode=OneWay}"
-                        TextWrapping="Wrap"
-                        Visibility="{x:Bind ViewModel.UpdateStatusVisibility, Mode=OneWay}" />
+                        FontSize="13"
+                        Foreground="{ThemeResource ServaHintBrush}"
+                        Text="{x:Bind ViewModel.UpdateLinkText, Mode=OneWay}" />
+                </HyperlinkButton>
+            </StackPanel>
 
-                    <!-- 发现新版本：蓝色链接打开 GitHub 上最新的 Release 页面 -->
-                    <HyperlinkButton
-                        Padding="0"
-                        NavigateUri="{x:Bind ViewModel.UpdateUri, Mode=OneWay}"
-                        Visibility="{x:Bind ViewModel.UpdateLinkVisibility, Mode=OneWay}">
-                        <TextBlock
-                            FontSize="13"
-                            Foreground="{ThemeResource ServaHintBrush}"
-                            Text="{x:Bind ViewModel.UpdateLinkText, Mode=OneWay}" />
-                    </HyperlinkButton>
-                </StackPanel>
-            </Border>
+            <!-- ============================ 关于 ============================ -->
+            <StackPanel Spacing="8">
+                <TextBlock Style="{StaticResource ServaSectionTitle}" Text="{x:Bind Text.AboutSection, Mode=OneWay}" />
 
-            <!-- ============================== 关于 ============================== -->
-            <Border Style="{StaticResource ServaCard}">
-                <StackPanel Spacing="4">
-                    <StackPanel Orientation="Horizontal" Spacing="10">
-                        <Image
-                            Width="28"
-                            Height="28"
-                            Source="{x:Bind ViewModel.AppIcon}"
-                            Stretch="Uniform" />
-                        <TextBlock
-                            VerticalAlignment="Center"
-                            Style="{StaticResource ServaSectionTitle}"
-                            Text="{x:Bind ViewModel.AppName}" />
-                    </StackPanel>
-                    <TextBlock
-                        FontSize="12"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Text="{x:Bind ViewModel.VersionText}" />
-                    <TextBlock
-                        FontSize="12"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Text="{x:Bind ViewModel.AuthorText}" />
-
-                    <!-- 项目地址：GitHub 图标 + 蓝色链接文字（点击后由默认浏览器打开） -->
-                    <StackPanel
-                        Margin="0,4,0,0"
-                        Orientation="Horizontal"
-                        Spacing="6">
-                        <Path
-                            Width="14"
-                            Height="14"
-                            VerticalAlignment="Center"
-                            Data="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"
-                            Fill="{ThemeResource ServaHintBrush}"
-                            Stretch="Uniform" />
-                        <HyperlinkButton
-                            Padding="0"
-                            VerticalAlignment="Center"
-                            NavigateUri="{x:Bind ViewModel.ProjectUri}">
+                <Border Style="{StaticResource SettingsCard}">
+                    <StackPanel Spacing="6">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Image
+                                Width="28"
+                                Height="28"
+                                Source="{x:Bind ViewModel.AppIcon}"
+                                Stretch="Uniform" />
                             <TextBlock
-                                FontSize="13"
-                                Foreground="{ThemeResource ServaHintBrush}"
-                                Text="{x:Bind Text.ProjectLink, Mode=OneWay}" />
-                        </HyperlinkButton>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
+                                VerticalAlignment="Center"
+                                FontSize="15"
+                                FontWeight="SemiBold"
+                                Text="{x:Bind ViewModel.AppName}" />
+                        </StackPanel>
 
+                        <TextBlock Style="{StaticResource SettingsHint}" Text="{x:Bind ViewModel.VersionText}" />
+                        <TextBlock Style="{StaticResource SettingsHint}" Text="{x:Bind ViewModel.AuthorText}" />
+
+                        <!-- 项目地址：GitHub 图标 + 蓝色链接文字（点击后由默认浏览器打开） -->
+                        <StackPanel
+                            Margin="0,2,0,0"
+                            Orientation="Horizontal"
+                            Spacing="6">
+                            <Path
+                                Width="14"
+                                Height="14"
+                                VerticalAlignment="Center"
+                                Data="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"
+                                Fill="{ThemeResource ServaHintBrush}"
+                                Stretch="Uniform" />
+                            <HyperlinkButton
+                                Padding="0"
+                                VerticalAlignment="Center"
+                                NavigateUri="{x:Bind ViewModel.ProjectUri}">
+                                <TextBlock
+                                    FontSize="13"
+                                    Foreground="{ThemeResource ServaHintBrush}"
+                                    Text="{x:Bind Text.ProjectLink, Mode=OneWay}" />
+                            </HyperlinkButton>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
         </StackPanel>
     </ScrollViewer>
 </Page>

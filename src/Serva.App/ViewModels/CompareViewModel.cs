@@ -116,11 +116,12 @@ public sealed partial class CompareViewModel : ObservableObject, IDisposable
 
     private void SaveSettings() => SettingsService.Current.Save();
 
-    /// <summary>排除 / 仅包含规则的指纹，用于判断设置页的改动是否需要重新扫描。</summary>
+    /// <summary>排除 / 包含规则的指纹，用于判断设置页的改动是否需要重新扫描。</summary>
     private string PatternSignature() => string.Join(
         "|",
         _settings.Options.ExcludePatterns.Select(static p => "+" + p)
-            .Concat(_settings.Options.IncludePatterns.Select(static p => "-" + p)));
+            .Concat(_settings.Options.IncludePatterns.Select(static p => "-" + p))
+            .Concat(_settings.Options.AlwaysIncludePatterns.Select(static p => "*" + p)));
 
     /// <summary>设置页保存后的响应：规则变了要求重扫，只改执行策略则重新生成计划即可。</summary>
     private void OnSettingsChanged(object? sender, EventArgs e)
@@ -138,8 +139,8 @@ public sealed partial class CompareViewModel : ObservableObject, IDisposable
         {
             _patternSignature = signature;
             ResetResults(() => Text.T(
-                "Filter rules changed. Click \"Scan and compare\" again.",
-                "筛选规则已更新，请重新点击「扫描并比较」。"));
+                "Folder rules changed. Click \"Scan and compare\" again.",
+                "文件夹规则已更新，请重新点击「扫描并比较」。"));
             return;
         }
 

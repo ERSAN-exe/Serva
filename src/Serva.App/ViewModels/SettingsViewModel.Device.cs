@@ -23,6 +23,23 @@ public sealed partial class SettingsViewModel
     /// <summary>没有检测到移动设备时显示一行提示。</summary>
     public Visibility DeviceEmptyVisibility => Devices.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
+    /// <summary>
+    /// 语言切换后让设备卡片里的文案重新生成。
+    /// <para>
+    /// <see cref="DeviceInfo"/> 是只读记录，卡片用的是 <c>x:Bind</c> 一次性绑定
+    /// （「移动设备 / 已使用 … / … 可用」都是取值时按当时的语言算好的）；
+    /// 把同样的设备换成新实例重新放回列表，卡片才会重新取一次文案。
+    /// 不重新枚举设备：换语言不该去碰 U 盘。
+    /// </para>
+    /// </summary>
+    private void RefreshDeviceTexts()
+    {
+        for (int i = 0; i < Devices.Count; i++)
+        {
+            Devices[i] = Devices[i] with { };
+        }
+    }
+
     // ============================ 执行策略 ============================
 
     /// <summary>

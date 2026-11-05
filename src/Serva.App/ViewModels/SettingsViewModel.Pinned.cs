@@ -28,7 +28,6 @@ public sealed partial class SettingsViewModel
         _settings.Value.PinnedFolders.Add(normalized);
         RebuildPinnedFolders();
         Save();
-        SetStatus(() => AppText.Current.F("Pinned: {0}", "已固定：{0}", normalized));
     }
 
     /// <summary>取消固定。</summary>
@@ -47,7 +46,6 @@ public sealed partial class SettingsViewModel
 
         RebuildPinnedFolders();
         Save();
-        SetStatus(() => AppText.Current.F("Unpinned: {0}", "已取消固定：{0}", folder));
     }
 
     /// <summary>把设置里的固定文件夹重新读入列表。</summary>

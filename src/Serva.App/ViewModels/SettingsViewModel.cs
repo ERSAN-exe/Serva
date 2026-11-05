@@ -16,9 +16,6 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly SettingsService _settings = SettingsService.Current;
 
     private string _newRuleText = string.Empty;
-    private string? _statusMessage;
-    private Func<string>? _statusFactory;
-    private bool _statusIsError;
 
     public SettingsViewModel()
     {
@@ -54,6 +51,15 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public RelayCommand RefreshDevicesCommand { get; }
 
+    /// <summary>
+    /// 语言切换后、本页「已经算好的文案」全部重新生成完时触发。
+    /// <para>
+    /// 页面订阅它做纯界面层的收尾：<c>ComboBox</c> 收起时显示的文案取自选项内容，
+    /// 选项内容换了新语言后它不会自己重新取值（见 <c>SettingsPage.RefreshComboBoxTexts</c>）。
+    /// </para>
+    /// </summary>
+    public event EventHandler? LocalizedTextsRefreshed;
+
     /// <summary>新增规则输入框内容。</summary>
     public string NewRuleText
     {
@@ -62,6 +68,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         {
             if (SetProperty(ref _newRuleText, value))
             {
+                // 重新输入就把上次的红字提示收掉。
+                ClearRuleError();
                 AddExcludeRuleCommand.RaiseCanExecuteChanged();
                 AddIncludeRuleCommand.RaiseCanExecuteChanged();
                 OnPropertyChanged(nameof(CanAddRule));
@@ -71,77 +79,31 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public bool CanAddRule => !string.IsNullOrWhiteSpace(NewRuleText);
 
-    /// <summary>操作反馈。</summary>
-    public string? StatusMessage
-    {
-        get => _statusMessage;
-        private set
-        {
-            if (SetProperty(ref _statusMessage, value))
-            {
-                OnPropertyChanged(nameof(HasStatus));
-            }
-        }
-    }
-
-    public bool HasStatus => !string.IsNullOrEmpty(StatusMessage);
-
-    public bool StatusIsError
-    {
-        get => _statusIsError;
-        private set
-        {
-            if (SetProperty(ref _statusIsError, value))
-            {
-                OnPropertyChanged(nameof(StatusSeverity));
-            }
-        }
-    }
-
-    public InfoBarSeverity StatusSeverity =>
-        StatusIsError ? InfoBarSeverity.Error : InfoBarSeverity.Success;
-
-    /// <summary>排除规则数量说明。</summary>
-    public string ExcludeCaption
-    {
-        get
-        {
-            AppText text = AppText.Current;
-
-            return text.F("{0} exclude rule(s)", "{0} 条排除规则", ExcludeRules.Count)
-                + (IncludeRules.Count > 0
-                    ? text.F(" · {0} include-only rule(s)", " · {0} 条仅包含规则", IncludeRules.Count)
-                    : string.Empty);
-        }
-    }
-
-    private void SetStatus(Func<string> message, bool isError = false)
-    {
-        _statusFactory = message;
-        StatusIsError = isError;
-        StatusMessage = message();
-    }
-
-    /// <summary>页面上的「×」：关掉状态提示，切换页面 / 切换语言后都不再出现。</summary>
-    public void DismissStatus()
-    {
-        _statusFactory = null;
-        StatusMessage = null;
-    }
+    /// <summary>规则数量说明：排除几条、包含几条。</summary>
+    public string ExcludeCaption =>
+        AppText.Current.F(
+            "Excluded: {0} · Included: {1}",
+            "排除规则 {0} 条 · 包含规则 {1} 条",
+            ExcludeRules.Count,
+            IncludeRules.Count);
 
     /// <summary>语言切换后：本页里「已经算好」的文案重新生成。</summary>
     private void RefreshLocalizedTexts()
     {
-        // 只有仍然显示着的状态提示才需要换语言（关掉过的不再复活）。
-        if (_statusFactory is not null && StatusMessage is not null)
-        {
-            StatusMessage = _statusFactory();
-        }
+        // 规则标签里有内置规则的悬停说明：按新语言重新放一遍列表。
+        RebuildRuleLists();
+
+        // 设备卡片用一次性绑定，换成新实例才会按新语言重新取值。
+        RefreshDeviceTexts();
 
         OnPropertyChanged(nameof(ExcludeCaption));
+        OnPropertyChanged(nameof(RuleErrorText));
         OnPropertyChanged(nameof(AuthorText));
         OnPropertyChanged(nameof(CurrentVersionText));
         RefreshUpdateState();
+
+        // 界面层的收尾（下拉框收起时显示的文案不会自己刷新，见 SettingsPage）。
+        LocalizedTextsRefreshed?.Invoke(this, EventArgs.Empty);
     }
 
     private void Save() => _settings.Save();

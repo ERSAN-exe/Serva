@@ -44,13 +44,16 @@ public static class ProtectedPaths
             return ProtectedPathKind.None;
         }
 
-        // C:\ 这样的盘符根：系统盘的根目录一律不允许。
+        // C:\ 这样的盘符根：只拒绝系统盘；其它盘的根目录可以作为同步目录。
+        // 注意：NTFS 会把**每个**卷根目录标成「隐藏 + 系统」属性，不能按属性把它当系统文件夹，
+        // 否则 D:\ / E:\ 的根目录会一律选不了。
         string? root = Path.GetPathRoot(normalized);
         if (root is not null
-            && string.Equals(Path.TrimEndingDirectorySeparator(root), normalized, StringComparison.OrdinalIgnoreCase)
-            && VolumeInfo.IsSystemVolume(normalized))
+            && string.Equals(Path.TrimEndingDirectorySeparator(root), normalized, StringComparison.OrdinalIgnoreCase))
         {
-            return ProtectedPathKind.SystemDriveRoot;
+            return VolumeInfo.IsSystemVolume(normalized)
+                ? ProtectedPathKind.SystemDriveRoot
+                : ProtectedPathKind.None;
         }
 
         if (IsSystemDirectoryName(normalized))

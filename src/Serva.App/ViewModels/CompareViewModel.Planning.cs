@@ -105,8 +105,8 @@ public sealed partial class CompareViewModel
             _ => false,
         },
 
-        // 将删除：镜像删除 / 覆盖时目标端多出来的文件。
-        ResultFilter.Deletions => row.DisplayStatus == CompareStatus.Delete,
+        // 将删除：镜删 / 删除目标端多余的文件（状态列显示的是文件原本的状态）。
+        ResultFilter.Deletions => row.Model.IsDelete,
 
         _ => true,
     };

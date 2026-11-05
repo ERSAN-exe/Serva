@@ -56,6 +56,27 @@ public class ExcludeMatcherTests
     }
 
     [Fact]
+    public void AlwaysIncludePatterns_OverrideExcludeRules()
+    {
+        // 「排除所有点开头的目录」，但 .minecraft 在「包含的文件」里 —— 以包含为准。
+        var matcher = new ExcludeMatcher([".*"], [], [".minecraft"]);
+
+        Assert.False(matcher.IsExcluded(".minecraft"));
+        Assert.False(matcher.IsExcluded(".minecraft/saves/world.dat"));
+        Assert.True(matcher.IsExcluded(".git/config"));
+    }
+
+    [Fact]
+    public void AlwaysIncludePatterns_CanBeCleared()
+    {
+        // 设置页把 .minecraft 删掉之后：内置的「隐藏也照扫」也随之失效。
+        var matcher = new ExcludeMatcher([], [], []);
+
+        Assert.False(matcher.IsExplicitlyIncluded(".minecraft"));
+        Assert.True(new ExcludeMatcher().IsExplicitlyIncluded(".minecraft"));
+    }
+
+    [Fact]
     public void EmptyPathIsNeverExcluded()
     {
         var matcher = new ExcludeMatcher();

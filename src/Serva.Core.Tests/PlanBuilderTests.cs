@@ -41,7 +41,9 @@ public class PlanBuilderTests
 
         PlanItem item = plan.Items.Single();
         Assert.Equal(PlanAction.DeleteOnDevice, item.Action);
-        Assert.Equal(CompareStatus.Delete, item.DisplayStatus);
+        Assert.True(item.IsDelete);
+        // 状态列仍显示文件原本的状态（仅设备），不再被改写成「将删除」。
+        Assert.Equal(CompareStatus.RightOnly, item.DisplayStatus);
         Assert.Equal(1, plan.CountOf(CompareStatus.Delete));
     }
 

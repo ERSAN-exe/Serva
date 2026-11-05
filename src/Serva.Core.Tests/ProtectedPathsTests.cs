@@ -19,6 +19,16 @@ public class ProtectedPathsTests
     }
 
     [Fact]
+    public void OtherDriveRoots_AreAllowed()
+    {
+        // 只有系统盘根目录被拒绝：其它盘的根目录（即使带「隐藏 + 系统」属性）可以作为同步目录。
+        string otherDrive = SystemDrive.StartsWith("Z:", StringComparison.OrdinalIgnoreCase) ? @"Y:\" : @"Z:\";
+
+        Assert.Equal(ProtectedPathKind.None, ProtectedPaths.Classify(otherDrive));
+        Assert.False(ProtectedPaths.IsProtected(otherDrive));
+    }
+
+    [Fact]
     public void WindowsAndProgramFolders_AreProtected_IncludingTheirSubfolders()
     {
         Assert.Equal(ProtectedPathKind.SystemFolder, ProtectedPaths.Classify(SystemRoot));

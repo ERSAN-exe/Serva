@@ -44,10 +44,15 @@ public sealed class PlanItem
     /// </summary>
     public bool IsActionable => Action is not (PlanAction.None or PlanAction.Conflict);
 
-    /// <summary>状态列 / 筛选 chip 使用的状态（删除类动作用「将删除」表示）。</summary>
-    public CompareStatus DisplayStatus => Action is PlanAction.DeleteOnDevice or PlanAction.DeleteOnLocal
-        ? CompareStatus.Delete
-        : Item.Status;
+    /// <summary>
+    /// 状态列显示的状态：<strong>删除动作不改写它</strong> —— 依旧显示文件本身的状态
+    /// （仅本机 / 仅设备 / 较新 …）。「将执行」列里已经写明「删除设备端多余」，
+    /// 状态列再写「将删除」反而丢掉了「是哪一侧的文件」这个信息。
+    /// </summary>
+    public CompareStatus DisplayStatus => Item.Status;
+
+    /// <summary>这一项要删除文件（镜像删除 / 删除目标端多余）。</summary>
+    public bool IsDelete => Action is PlanAction.DeleteOnDevice or PlanAction.DeleteOnLocal;
 
     /// <summary>「将执行」列显示的文案。</summary>
     public string ActionText => Action switch
@@ -83,7 +88,8 @@ public sealed class SyncPlan
 
         foreach (PlanItem item in items)
         {
-            _counts[item.DisplayStatus]++;
+            // 删除项单独计一类：「将删除」这个筛选 / 统计仍然要用，但状态列显示原状态。
+            _counts[item.IsDelete ? CompareStatus.Delete : item.DisplayStatus]++;
         }
     }
 

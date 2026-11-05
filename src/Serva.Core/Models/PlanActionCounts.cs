@@ -19,6 +19,12 @@ public sealed record PlanActionCounts(
 {
     public static PlanActionCounts Empty { get; } = new(0, 0, 0, 0, 0, 0, 0);
 
+    /// <summary>
+    /// 真正会被操作的文件数（= 总数 − 「不会执行操作」）。
+    /// 执行前确认里的「将对 N 个文件进行操作」用的是它：未勾选 / 相同 / 等待选择的文件不该算进去。
+    /// </summary>
+    public int Operated => Math.Max(0, Total - Skip);
+
     public static PlanActionCounts From(SyncPlan? plan)
     {
         if (plan is null)

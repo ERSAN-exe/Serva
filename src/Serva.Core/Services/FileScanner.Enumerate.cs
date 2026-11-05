@@ -75,7 +75,11 @@ public sealed partial class FileScanner
                 // 只过滤「自身带隐藏属性」的文件会漏掉它们（.git、各种应用缓存目录等）。
                 // 以点开头的目录（.git / .vs / .vscode …）在 exFAT / FAT 上不一定带隐藏属性，
                 // 按名字再挡一次 —— 与「选择文件夹」对话框里的判定保持一致。
-                if (_skipHiddenAndSystem && (name.StartsWith('.') || IsHiddenOrSystem(child)))
+                // 例外：用户把某个隐藏文件夹加进「仅包含」规则（或内置清单如 .minecraft）时，
+                // 说明他就是要同步这个文件夹，不能因为「隐藏」把它丢掉。
+                if (_skipHiddenAndSystem
+                    && (name.StartsWith('.') || IsHiddenOrSystem(child))
+                    && !_matcher.IsExplicitlyIncluded(childRel))
                 {
                     continue;
                 }

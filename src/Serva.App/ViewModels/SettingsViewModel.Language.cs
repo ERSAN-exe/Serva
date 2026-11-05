@@ -11,6 +11,12 @@ public sealed partial class SettingsViewModel
         get => LanguageService.IndexOf(_settings.Value.Language);
         set
         {
+            // 下拉框换选项（换语言时重新取文案）会先给出 -1，不当成「改回跟随系统」。
+            if (value < 0)
+            {
+                return;
+            }
+
             string language = LanguageService.FromIndex(value);
 
             if (string.Equals(_settings.Value.Language, language, StringComparison.Ordinal))

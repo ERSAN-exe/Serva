@@ -44,13 +44,15 @@
             </StackPanel>
         </Grid>
 
-        <!-- ===================== 导航（比较 / 日志 / 设置） ===================== -->
+        <!-- ===================== 导航（比较 / 设置） ===================== -->
         <NavigationView
             x:Name="NavView"
             Grid.Row="1"
             Background="Transparent"
             IsBackButtonVisible="Collapsed"
             IsSettingsVisible="False"
+            IsPaneToggleButtonVisible="False"
+            IsPaneOpen="True"
             OpenPaneLength="220"
             PaneDisplayMode="Left"
             SelectionChanged="NavView_SelectionChanged">
