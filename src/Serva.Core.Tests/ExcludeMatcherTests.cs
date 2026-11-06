@@ -47,6 +47,79 @@ public class ExcludeMatcherTests
     }
 
     [Fact]
+    public void IncludeFolderPattern_CoversItsSubtree()
+    {
+        // 「包含某个文件夹」= 连同它下面的内容一起包含（嵌套路径同样适用）。
+        var matcher = new ExcludeMatcher([], ["sub/hidden"]);
+
+        Assert.False(matcher.IsExcluded("sub/hidden"));
+        Assert.False(matcher.IsExcluded("sub/hidden/notes.txt"));
+        Assert.True(matcher.IsExcluded("sub/other/notes.txt"));
+    }
+
+    [Fact]
+    public void ExcludeFolderPattern_CoversItsSubtree()
+    {
+        var matcher = new ExcludeMatcher(["sub/cache"]);
+
+        Assert.True(matcher.IsExcluded("sub/cache"));
+        Assert.True(matcher.IsExcluded("sub/cache/x.bin"));
+        Assert.False(matcher.IsExcluded("sub/other/x.bin"));
+    }
+
+    [Fact]
+    public void ShouldDescend_KeepsAncestorsOfIncludeRules()
+    {
+        // 规则的上级目录必须继续下探，否则「包含 sub/hidden」永远走不到 hidden。
+        var matcher = new ExcludeMatcher([], ["sub/hidden"]);
+
+        Assert.True(matcher.ShouldDescend("sub"));
+        Assert.True(matcher.ShouldDescend("sub/hidden"));
+        Assert.False(matcher.ShouldDescend("other"));
+    }
+
+    [Fact]
+    public void ShouldDescend_FollowsNameOnlyIncludeRules()
+    {
+        // 只写名字的「包含」规则（如隐藏文件夹名）可能出现在任意层级：必须一路下探去找。
+        var matcher = new ExcludeMatcher([], ["HiddenDir"]);
+
+        Assert.True(matcher.ShouldDescend("sub"));
+        Assert.True(matcher.ShouldDescend("sub/deeper"));
+        Assert.True(matcher.MayContainIncluded("sub/deeper"));
+    }
+
+    [Fact]
+    public void ShouldDescend_StillStopsAtExcludeRules()
+    {
+        var matcher = new ExcludeMatcher(["**/node_modules/**"], ["*.log"]);
+
+        Assert.False(matcher.ShouldDescend("a/node_modules"));
+        Assert.True(matcher.ShouldDescend("a/src"));
+    }
+
+    [Fact]
+    public void MayContainIncluded_CoversExplicitFoldersAndTheirAncestors()
+    {
+        var matcher = new ExcludeMatcher([], ["sub/hidden"]);
+
+        Assert.True(matcher.MayContainIncluded("sub"));
+        Assert.True(matcher.MayContainIncluded("sub/hidden"));
+        Assert.True(matcher.MayContainIncluded("sub/hidden/deeper"));
+        Assert.False(matcher.MayContainIncluded("other"));
+    }
+
+    [Fact]
+    public void NormalizesDotSlashPrefix()
+    {
+        // 用户按资源管理器的习惯写成「.\隐藏文件夹」：等于「隐藏文件夹」。
+        var matcher = new ExcludeMatcher([], [@".\Hidden"]);
+
+        Assert.False(matcher.IsExcluded("Hidden/notes.txt"));
+        Assert.True(matcher.ShouldDescend("sub"));
+    }
+
+    [Fact]
     public void NormalizesBackslashesAndCase()
     {
         var matcher = new ExcludeMatcher(["A/B"]);
@@ -58,7 +131,7 @@ public class ExcludeMatcherTests
     [Fact]
     public void AlwaysIncludePatterns_OverrideExcludeRules()
     {
-        // 「排除所有点开头的目录」，但 .minecraft 在「包含的文件」里 —— 以包含为准。
+        // 「排除所有点开头的目录」，但 .minecraft 在「包含规则」里 —— 以包含为准。
         var matcher = new ExcludeMatcher([".*"], [], [".minecraft"]);
 
         Assert.False(matcher.IsExcluded(".minecraft"));
@@ -67,13 +140,11 @@ public class ExcludeMatcherTests
     }
 
     [Fact]
-    public void AlwaysIncludePatterns_CanBeCleared()
+    public void AlwaysIncludePatterns_AreEmptyByDefault()
     {
-        // 设置页把 .minecraft 删掉之后：内置的「隐藏也照扫」也随之失效。
-        var matcher = new ExcludeMatcher([], [], []);
-
-        Assert.False(matcher.IsExplicitlyIncluded(".minecraft"));
-        Assert.True(new ExcludeMatcher().IsExplicitlyIncluded(".minecraft"));
+        // 默认不再预置 .minecraft：需要时由用户在「设置 → 执行规则 → 包含规则」里自己添加。
+        Assert.False(new ExcludeMatcher().IsExplicitlyIncluded(".minecraft"));
+        Assert.False(new ExcludeMatcher([], [], []).IsExplicitlyIncluded(".minecraft"));
     }
 
     [Fact]

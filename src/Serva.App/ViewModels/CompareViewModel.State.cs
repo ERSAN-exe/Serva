@@ -35,7 +35,7 @@ public sealed partial class CompareViewModel
             RaiseMappingPanelState();
             OnPropertyChanged(nameof(CanScan));
             OnPropertyChanged(nameof(DeviceCard));
-            OnPropertyChanged(nameof(LocalCard));
+            OnPropertyChanged(nameof(LocalCards));
             OnPropertyChanged(nameof(DeviceSideName));
             OnPropertyChanged(nameof(LocalSideName));
             OnPropertyChanged(nameof(OverwriteDeviceOptionText));
@@ -128,9 +128,15 @@ public sealed partial class CompareViewModel
         get
         {
             SyncPlan? plan = _plan;
-            if (plan is null || plan.TotalCount == 0)
+            if (plan is null)
             {
                 return Text.T("No plan yet", "尚无计划");
+            }
+
+            // 扫描完成、但一条可比条目都没有（例如「包含的文件」规则把所有文件都滤掉了）。
+            if (plan.TotalCount == 0)
+            {
+                return Text.NothingToCompare;
             }
 
             string conflicts = ConflictCount > 0
@@ -200,7 +206,10 @@ public sealed partial class CompareViewModel
         }
     }
 
-    /// <summary>本机侧盘符；多条对应关系位于不同盘时回退为「本机盘」。</summary>
+    /// <summary>
+    /// 本机侧盘符（如 <c>C:</c>）。对应关系分散在几个盘上时按顺序全部列出（如 <c>C: D:</c>）：
+    /// 结果页的提示要让人看清到底动的是哪几个盘，笼统地说「本机盘」说不清。
+    /// </summary>
     public string LocalDriveText
     {
         get
@@ -208,22 +217,33 @@ public sealed partial class CompareViewModel
             string[] drives =
             [
                 .. Mappings.Select(static m => CompareRowViewModel.DriveOf(m.LocalRoot))
+                    .Where(static d => d.Length > 0)
                     .Distinct(StringComparer.OrdinalIgnoreCase),
             ];
 
-            return drives.Length == 1 ? drives[0] : Text.T("local disk", "本机盘");
+            return drives.Length == 0 ? Text.T("local disk", "本机盘") : string.Join(" ", drives);
         }
     }
 
-    /// <summary>设备侧盘符（如 <c>E:</c>）。</summary>
-    public string DeviceDriveText => Mappings.Count == 0
-        ? Text.T("device", "设备盘")
-        : CompareRowViewModel.DriveOf(Mappings[0].DeviceRoot);
+    /// <summary>设备侧盘符（如 <c>E:</c>；对应关系跨多个盘时同样逐个列出）。</summary>
+    public string DeviceDriveText
+    {
+        get
+        {
+            string[] drives =
+            [
+                .. Mappings.Select(static m => CompareRowViewModel.DriveOf(m.DeviceRoot))
+                    .Where(static d => d.Length > 0)
+                    .Distinct(StringComparer.OrdinalIgnoreCase),
+            ];
+
+            return drives.Length == 0 ? Text.T("device", "设备盘") : string.Join(" ", drives);
+        }
+    }
 
     /// <summary>本机来源所在盘符（探测结果的缓存键）。</summary>
     private string? _localSideProbeRoot;
     private bool _localSideIsRemovable;
-    private string? _localSideVolumeLabel;
 
     /// <summary>本机来源所在磁盘是否为可移动设备（按盘符探测一次，结果缓存）。</summary>
     private bool LocalSideIsRemovable
@@ -246,7 +266,6 @@ public sealed partial class CompareViewModel
 
         _localSideProbeRoot = root;
         _localSideIsRemovable = false;
-        _localSideVolumeLabel = null;
 
         if (string.IsNullOrEmpty(root))
         {
@@ -257,7 +276,6 @@ public sealed partial class CompareViewModel
         {
             DeviceInfo? info = VolumeInfo.TryDescribe(new DriveInfo(root + Path.DirectorySeparatorChar));
             _localSideIsRemovable = info?.IsRemovableStorage ?? false;
-            _localSideVolumeLabel = info?.VolumeLabel;
         }
         catch (Exception ex) when (ex is ArgumentException or IOException)
         {
@@ -283,29 +301,86 @@ public sealed partial class CompareViewModel
     /// <summary>设备一侧在句子里的称呼：同类时是盘符，否则是「设备」。</summary>
     public string DeviceSideName => SameKindSides ? DeviceDriveText : Text.T("device", "设备");
 
-    /// <summary>本机侧盘符卡片（小字角色 + 盘符），用于结果页的执行方式。</summary>
-    public DriveCardViewModel LocalCard => new(LocalRoleText, LocalDriveText);
-
-    /// <summary>设备侧盘符卡片：角色里带上卷标（如「外置设备 · 0123」）。</summary>
-    public DriveCardViewModel DeviceCard => new(DeviceRoleText, DeviceDriveText);
-
-    /// <summary>本机侧卡片的角色文案：跟随本机来源所在磁盘的种类（本机硬盘 / 外置设备 · 卷标）。</summary>
-    private string LocalRoleText
+    /// <summary>
+    /// 结果页左侧的盘符卡片：按介质分组，列出对应关系里用到的<strong>本机盘符</strong>。
+    /// <para>
+    /// 只有一种介质时是一张卡片（如「本机硬盘 C: D:」）；本机硬盘与可移动设备混用时是<strong>两张</strong>卡片，
+    /// 分别列出各自的盘符。右侧卡片始终是主页里选中的那台设备。
+    /// </para>
+    /// </summary>
+    public IReadOnlyList<DriveCardViewModel> LocalCards
     {
         get
         {
-            ProbeLocalSide();
+            var localDrives = new List<string>();
+            var removableDrives = new List<string>();
 
-            if (!LocalSideIsRemovable)
+            foreach (string drive in Mappings
+                         .Select(static m => CompareRowViewModel.DriveOf(m.LocalRoot))
+                         .Where(static d => d.Length > 0)
+                         .Distinct(StringComparer.OrdinalIgnoreCase))
             {
-                return Text.T("Local disk", "本机硬盘");
+                (IsRemovableDrive(drive) ? removableDrives : localDrives).Add(drive);
             }
 
-            return _localSideVolumeLabel is { Length: > 0 } label
-                ? Text.F("Removable device · {0}", "外置设备 · {0}", label)
-                : Text.T("Removable device", "外置设备");
+            var cards = new List<DriveCardViewModel>(2);
+
+            if (localDrives.Count > 0)
+            {
+                cards.Add(new DriveCardViewModel(
+                    Text.T("Local disk", "本机硬盘"),
+                    string.Join(" ", localDrives)));
+            }
+
+            if (removableDrives.Count > 0)
+            {
+                cards.Add(new DriveCardViewModel(
+                    Text.T("Removable device", "可移动设备"),
+                    string.Join(" ", removableDrives)));
+            }
+
+            if (cards.Count == 0)
+            {
+                cards.Add(new DriveCardViewModel(
+                    Text.T("Local disk", "本机硬盘"),
+                    Text.T("local disk", "本机盘")));
+            }
+
+            return cards;
         }
     }
+
+    /// <summary>盘符 → 是否为可移动设备。按盘符缓存一次探测结果，避免每次绑定都去读盘。</summary>
+    private readonly Dictionary<string, bool> _driveKindCache = new(StringComparer.OrdinalIgnoreCase);
+
+    private bool IsRemovableDrive(string drive)
+    {
+        if (_driveKindCache.TryGetValue(drive, out bool cached))
+        {
+            return cached;
+        }
+
+        bool removable = false;
+
+        try
+        {
+            removable = VolumeInfo.TryDescribe(new DriveInfo(drive + Path.DirectorySeparatorChar))
+                ?.IsRemovableStorage ?? false;
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException)
+        {
+            // 盘符暂时不可用：按本机硬盘处理即可（只影响卡片上的措辞）。
+        }
+
+        _driveKindCache[drive] = removable;
+        return removable;
+    }
+
+    /// <summary>
+    /// 设备侧盘符卡片：角色里带上卷标（如「外置设备 · 0123」），
+    /// 盘符是<strong>添加对应关系时选中的那台设备</strong>。
+    /// </summary>
+    public DriveCardViewModel DeviceCard => new(DeviceRoleText, DeviceDriveText);
 
     /// <summary>
     /// 设备卡片的角色文案：移动设备是「外置设备（卷标）」，
@@ -472,7 +547,17 @@ public sealed partial class CompareViewModel
 
     public int ConflictCount => _plan?.CountOf(CompareStatus.Conflict) ?? 0;
 
+    /// <summary>
+    /// 结果页是否已可进入：只要扫描跑完（哪怕一条可比条目都没有）就算有结果 ——
+    /// 原来「没有条目 = 没有结果」会让「扫描并比较」什么都不发生，看起来像结果页打不开。
+    /// </summary>
     public bool HasResults => _plan is not null;
+
+    /// <summary>
+    /// 结果表为空时的说明：一条可比条目都没有（多半是「包含的文件」规则把文件都滤掉了），
+    /// 与「被筛选 / 搜索过滤掉」区分开，避免用户以为同步坏了。
+    /// </summary>
+    public string RowsEmptyText => _allRows.Count == 0 ? Text.NoComparableItemsHint : Text.EmptyRows;
 }
 
 /// <summary>扫描结果弹窗里选择的处理方式。</summary>

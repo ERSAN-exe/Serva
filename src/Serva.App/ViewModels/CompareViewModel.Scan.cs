@@ -8,12 +8,15 @@ namespace Serva.App.ViewModels;
 /// <summary>「比较」页视图模型 —— 按对应关系扫描与比较（partial）。</summary>
 public sealed partial class CompareViewModel
 {
-    /// <summary>按当前对应关系扫描两端并生成计划（扫描完成后由页面弹出结果对话框）。</summary>
-    public async Task ScanAndCompareAsync()
+    /// <summary>
+    /// 按当前对应关系扫描两端并生成计划（扫描完成后由页面弹出结果对话框）。
+    /// </summary>
+    /// <returns><c>true</c> 表示扫描成功（结果可以查看）；设备被拔出 / 路径读不到时返回 <c>false</c>。</returns>
+    public async Task<bool> ScanAndCompareAsync()
     {
         if (!CanScan || _selectedDevice is not { } device)
         {
-            return;
+            return false;
         }
 
         // 旧配置里可能还留着指向系统盘根目录 / 系统文件夹的对应关系：直接拒绝，
@@ -26,7 +29,7 @@ public sealed partial class CompareViewModel
                     "这条对应关系指向受保护的文件夹，无法使用：{0}",
                     blocked.LocalRoot),
                 InfoBarSeverity.Error);
-            return;
+            return false;
         }
 
         IsBusy = true;
@@ -35,6 +38,7 @@ public sealed partial class CompareViewModel
 
         List<MappingViewModel> mappings = [.. Mappings];
         string volumeSerial = device.VolumeSerial;
+        bool succeeded = false;
 
         try
         {
@@ -89,13 +93,24 @@ public sealed partial class CompareViewModel
                 _states.Count));
 
             Replan();
+
+            // 扫描完了却一条可比条目都没有：说清楚「两端都没有可同步的文件」，
+            // 别让用户以为扫描没跑（结果页照样会打开，里面是同样的空态说明）。
+            if (_allRows.Count == 0)
+            {
+                SetBanner(() => Text.NoComparableItemsHint, InfoBarSeverity.Warning);
+            }
+
+            succeeded = true;
         }
         catch (DirectoryNotFoundException ex)
         {
+            DiscardStaleResults();
             SetBanner(() => Text.F("Path not found: {0}", "路径不存在：{0}", ex.Message), InfoBarSeverity.Error);
         }
         catch (IOException ex)
         {
+            DiscardStaleResults();
             SetBanner(
                 () => Text.F(
                     "Failed to read the device (it may have been unplugged): {0}",
@@ -105,6 +120,7 @@ public sealed partial class CompareViewModel
         }
         catch (UnauthorizedAccessException ex)
         {
+            DiscardStaleResults();
             SetBanner(
                 () => Text.F("No permission to read this path: {0}", "没有权限读取该路径：{0}", ex.Message),
                 InfoBarSeverity.Error);
@@ -113,5 +129,22 @@ public sealed partial class CompareViewModel
         {
             IsBusy = false;
         }
+
+        return succeeded;
+    }
+
+    /// <summary>
+    /// 扫描失败（设备被拔出 / 路径读不到）时把上一轮的结果作废。
+    /// <para>
+    /// 否则结果页还会拿着<strong>旧的计划</strong>照常打开 —— 表现就是「设备一断开，反而进了结果页」。
+    /// </para>
+    /// </summary>
+    private void DiscardStaleResults()
+    {
+        ResetMappingStates();
+        SetScanSummary(() => Text.T(
+            "Scan failed. Reconnect the device and scan again.",
+            "扫描失败，请重新接入设备后再扫描。"));
+        UpdateDerivedSummaries();
     }
 }

@@ -65,8 +65,10 @@ public sealed partial class FileScanner
                 string name = Path.GetFileName(child);
                 string childRel = rel.Length == 0 ? name : rel + "/" + name;
 
-                // 命中排除规则的目录整棵子树跳过；重解析点（junction / symlink）跳过以免成环。
-                if (_matcher.IsExcluded(childRel) || IsReparsePoint(child))
+                // 该目录还要不要继续往下走：
+                // 命中排除规则的目录整棵子树跳过；「仅包含」白名单没命中、但可能是规则目标的上级目录时
+                // 仍要下探 —— 否则「包含 sub/hidden」永远走不到 hidden。重解析点（junction / symlink）跳过以免成环。
+                if (!_matcher.ShouldDescend(childRel) || IsReparsePoint(child))
                 {
                     continue;
                 }
@@ -75,11 +77,12 @@ public sealed partial class FileScanner
                 // 只过滤「自身带隐藏属性」的文件会漏掉它们（.git、各种应用缓存目录等）。
                 // 以点开头的目录（.git / .vs / .vscode …）在 exFAT / FAT 上不一定带隐藏属性，
                 // 按名字再挡一次 —— 与「选择文件夹」对话框里的判定保持一致。
-                // 例外：用户把某个隐藏文件夹加进「仅包含」规则（或内置清单如 .minecraft）时，
-                // 说明他就是要同步这个文件夹，不能因为「隐藏」把它丢掉。
+                // 例外：用户把某个隐藏文件夹加进「包含规则」时，
+                // 说明他就是要同步这个文件夹，不能因为「隐藏」把它丢掉；
+                // 「隐藏目录里面还有被包含的文件夹」时同样要下探（进去，但不把隐藏目录本身当内容）。
                 if (_skipHiddenAndSystem
                     && (name.StartsWith('.') || IsHiddenOrSystem(child))
-                    && !_matcher.IsExplicitlyIncluded(childRel))
+                    && !_matcher.MayContainIncluded(childRel))
                 {
                     continue;
                 }
@@ -89,7 +92,12 @@ public sealed partial class FileScanner
                     continue;
                 }
 
-                result.Add((childRel, child));
+                // 白名单没命中的上级目录只用来「借道」：文件仍按规则过滤，目录也不当成内容列出来。
+                if (!_matcher.IsExcluded(childRel))
+                {
+                    result.Add((childRel, child));
+                }
+
                 stack.Push((childRel, child));
             }
         }
@@ -101,7 +109,11 @@ public sealed partial class FileScanner
     {
         try
         {
-            if (_skipHiddenAndSystem && (info.Attributes & (FileAttributes.Hidden | FileAttributes.System)) != 0)
+            // 隐藏 / 系统文件默认跳过；但「包含」规则点名的照常收录 ——
+            // 隐藏文件夹里的内容同样可能带隐藏属性（如其中的 desktop.ini、系统缓存文件）。
+            if (_skipHiddenAndSystem
+                && (info.Attributes & (FileAttributes.Hidden | FileAttributes.System)) != 0
+                && !_matcher.IsExplicitlyIncluded(relativePath))
             {
                 return null;
             }

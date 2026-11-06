@@ -130,6 +130,9 @@ public sealed partial class CompareViewModel
 
         _deviceSignature = signature;
 
+        // 设备集合变了（插拔 / 换盘符）：盘符的介质可能也变了，清掉「是否可移动」的缓存重新探测。
+        _driveKindCache.Clear();
+
         // 设备集合真的变了（插入 / 拔出）：结束「重新扫描后等用户重选」的状态 ——
         // 插上设备就应该自动选中它并读回它自己的对应关系。
         if (UpdateKnownDevices(devices))

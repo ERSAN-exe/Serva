@@ -41,9 +41,9 @@ public sealed partial class CompareViewModel
             }
         }
 
-        _plan = _allRows.Count == 0
-            ? null
-            : new SyncPlan(EffectivePlan.Mode, [.. _allRows.Select(static r => r.Model)]);
+        // 即使一条可比条目都没有，也要给出（空）计划：结果页据此打开，
+        // 否则「扫描并比较」看起来什么都没发生（用户会以为结果页打不开）。
+        _plan = new SyncPlan(EffectivePlan.Mode, [.. _allRows.Select(static r => r.Model)]);
 
         ApplyRows();
         UpdateDerivedSummaries();
@@ -70,6 +70,7 @@ public sealed partial class CompareViewModel
 
         OnPropertyChanged(nameof(HasVisibleRows));
         OnPropertyChanged(nameof(RowsEmptyVisibility));
+        OnPropertyChanged(nameof(RowsEmptyText));
         OnPropertyChanged(nameof(RowCaptionText));
         OnPropertyChanged(nameof(HasResults));
     }

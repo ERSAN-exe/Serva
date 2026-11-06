@@ -105,9 +105,20 @@
                         Style="{StaticResource ServaSectionTitle}"
                         Text="{x:Bind Text.ActionTitle, Mode=OneWay}" />
 
-                    <!-- 盘符卡片固定不动，切换选项时只有中间的图标变化。 -->
-                    <StackPanel Orientation="Horizontal" Spacing="12">
-                        <ContentControl Content="{x:Bind ViewModel.LocalCard, Mode=OneWay}" ContentTemplate="{StaticResource DriveCardTemplate}" />
+                    <!-- 盘符卡片固定不动，切换选项时只有中间的图标变化：
+                         左侧 = 对应关系里的本机盘符（本机硬盘与可移动设备混用时各一张卡片），
+                         右侧 = 主页里选中的那台设备。 -->
+                    <StackPanel
+                        HorizontalAlignment="Left"
+                        Orientation="Horizontal"
+                        Spacing="12">
+                        <ItemsControl ItemTemplate="{StaticResource DriveCardTemplate}" ItemsSource="{x:Bind ViewModel.LocalCards, Mode=OneWay}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="12" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                        </ItemsControl>
                         <FontIcon
                             VerticalAlignment="Center"
                             FontSize="16"
@@ -290,7 +301,8 @@
                         Margin="16,12"
                         FontSize="12"
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Text="{x:Bind Text.EmptyRows, Mode=OneWay}"
+                        Text="{x:Bind ViewModel.RowsEmptyText, Mode=OneWay}"
+                        TextWrapping="Wrap"
                         Visibility="{x:Bind ViewModel.RowsEmptyVisibility, Mode=OneWay}" />
                 </Grid>
             </Border>

@@ -320,7 +320,7 @@ public sealed partial class CompareViewModel
         OnPropertyChanged(nameof(DeviceDriveText));
         OnPropertyChanged(nameof(LocalSideName));
         OnPropertyChanged(nameof(DeviceSideName));
-        OnPropertyChanged(nameof(LocalCard));
+        OnPropertyChanged(nameof(LocalCards));
         OnPropertyChanged(nameof(DeviceCard));
         OnPropertyChanged(nameof(MergeOptionText));
         OnPropertyChanged(nameof(OverwriteDeviceOptionText));

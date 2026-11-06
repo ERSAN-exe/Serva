@@ -4,7 +4,7 @@ using Serva.Core.Services;
 
 namespace Serva.App.ViewModels;
 
-/// <summary>「设置」页 —— 文件夹规则（排除的文件 / 包含的文件）。</summary>
+/// <summary>「设置」页 —— 执行规则（排除规则 / 包含规则）。</summary>
 public sealed partial class SettingsViewModel
 {
     /// <summary>最近一次校验失败的原因（输入框下方红字用）。</summary>
@@ -43,7 +43,7 @@ public sealed partial class SettingsViewModel
             ExcludeRules.Add(new ExcludeRuleViewModel(rule, isBuiltIn));
         }
 
-        // 包含的文件：排在最前的是默认的 .minecraft（可以删除），后面才是用户自己加的规则。
+        // 包含规则：先列内置清单（默认为空，用户可以删），后面才是用户自己加的规则。
         IncludeRules.Clear();
         foreach (string rule in _settings.Value.Options.AlwaysIncludePatterns
                      .Concat(_settings.Value.Options.IncludePatterns))
@@ -72,7 +72,9 @@ public sealed partial class SettingsViewModel
 
         if (isInclude)
         {
-            _settings.Value.Options.IncludePatterns.Add(rule);
+            // 「包含的文件」= 额外包含：命中的文件一定同步（隐藏也照扫），其余文件照旧按排除规则处理。
+            // 不能写进 IncludePatterns —— 那是白名单，加了规则会让别的文件全部消失。
+            _settings.Value.Options.AlwaysIncludePatterns.Add(rule);
         }
         else
         {
@@ -93,7 +95,7 @@ public sealed partial class SettingsViewModel
 
         if (isInclude)
         {
-            // 「包含的文件」里既有默认的 .minecraft 也有用户添加的规则，两处都试着删。
+            // 「包含规则」里既有内置清单也有用户添加的规则，两处都试着删。
             int removed = _settings.Value.Options.AlwaysIncludePatterns.RemoveAll(MatchRule(rule))
                           + _settings.Value.Options.IncludePatterns.RemoveAll(MatchRule(rule));
 
@@ -120,7 +122,7 @@ public sealed partial class SettingsViewModel
         Save();
     }
 
-    /// <summary>要判重的那一组规则（添加「包含」时，默认的 .minecraft 也算进去）。</summary>
+    /// <summary>要判重的那一组规则（添加「包含」时，内置清单也算进去）。</summary>
     private IEnumerable<string> RulesIn(bool isInclude) => isInclude
         ? IncludeRules
         : ExcludeRules.Select(static r => r.Pattern);

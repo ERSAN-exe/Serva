@@ -91,17 +91,103 @@ public class FileScannerTests
     }
 
     [Fact]
-    public void MinecraftFolder_IsScannedByDefault()
+    public void ExplicitlyIncludedHiddenFolder_IncludesHiddenEntriesInside()
     {
-        // .minecraft 以点开头（平时算隐藏），但在内置的「隐藏也照扫」清单里。
+        // 隐藏文件夹里的内容也可能带隐藏属性：文件夹被点名包含，里面的东西就要一起算。
+        using var tree = new TestTree("scan-hidden-inside");
+        tree.Add("HiddenDir/a.txt", "A");
+        string hiddenFile = tree.Add("HiddenDir/hidden.txt", "H");
+        File.SetAttributes(hiddenFile, FileAttributes.Hidden);
+        File.SetAttributes(tree.PathOf("HiddenDir"), FileAttributes.Hidden);
+
+        var matcher = new ExcludeMatcher(includePatterns: ["HiddenDir"]);
+        ScanResult result = new FileScanner(matcher, skipHiddenAndSystem: true).Scan(tree.Root);
+
+        Assert.Equal(
+            ["HiddenDir/a.txt", "HiddenDir/hidden.txt"],
+            result.Files.Keys.OrderBy(static k => k, StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public void IncludeRuleForNestedFolder_ReachesTheFolder()
+    {
+        // 「包含 sub/HiddenDir」：上级 sub 本身不命中白名单，也必须继续下探，否则永远走不到目标。
+        using var tree = new TestTree("scan-nested-include");
+        tree.Add("sub/HiddenDir/c.txt", "C");
+        tree.Add("sub/other/d.txt", "D");
+        File.SetAttributes(tree.PathOf("sub/HiddenDir"), FileAttributes.Hidden);
+
+        var matcher = new ExcludeMatcher(includePatterns: ["sub/HiddenDir"]);
+        ScanResult result = new FileScanner(matcher, skipHiddenAndSystem: true).Scan(tree.Root);
+
+        Assert.Equal(["sub/HiddenDir/c.txt"], result.Files.Keys.OrderBy(static k => k, StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public void IncludeRuleForFolderInsideHiddenFolder_ReachesTheFolder()
+    {
+        // 隐藏目录里面被点名的文件夹：隐藏目录要进去（只当通道），它自己不算内容。
+        using var tree = new TestTree("scan-hidden-parent-include");
+        tree.Add("HiddenParent/child/d.txt", "D");
+        tree.Add("HiddenParent/other/e.txt", "E");
+        File.SetAttributes(tree.PathOf("HiddenParent"), FileAttributes.Hidden);
+
+        var matcher = new ExcludeMatcher(includePatterns: ["HiddenParent/child"]);
+        ScanResult result = new FileScanner(matcher, skipHiddenAndSystem: true).Scan(tree.Root);
+
+        Assert.Equal(
+            ["HiddenParent/child/d.txt"],
+            result.Files.Keys.OrderBy(static k => k, StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public void IncludeRuleByName_FindsHiddenFolderAtAnyDepth()
+    {
+        // 用户只写名字把隐藏文件夹加进「包含」：它在子目录里也要能找到（不能因为上级没命中白名单被剪掉）。
+        using var tree = new TestTree("scan-include-by-name");
+        tree.Add("sub/deeper/HiddenDir/notes.txt", "N");
+        tree.Add("sub/other/x.txt", "X");
+        File.SetAttributes(tree.PathOf("sub/deeper/HiddenDir"), FileAttributes.Hidden);
+
+        var matcher = new ExcludeMatcher(includePatterns: ["HiddenDir"]);
+        ScanResult result = new FileScanner(matcher, skipHiddenAndSystem: true).Scan(tree.Root);
+
+        Assert.Equal(
+            ["sub/deeper/HiddenDir/notes.txt"],
+            result.Files.Keys.OrderBy(static k => k, StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public void IncludedRuleName_DoesNotHideOtherFiles()
+    {
+        // 「包含规则」是额外包含：加了 .minecraft 之后，别的文件照旧参与同步
+        // （以前写进 IncludePatterns 白名单，会让所有没命中的文件消失）。
+        using var tree = new TestTree("scan-include-additive");
+        tree.Add("1.txt", "1");
+        tree.Add("2.txt", "2");
+        tree.Add(".minecraft/saves/world.dat", "W");
+
+        var matcher = new ExcludeMatcher([], [], ["/.minecraft/"]);
+        ScanResult result = new FileScanner(matcher, skipHiddenAndSystem: true).Scan(tree.Root);
+
+        Assert.Equal(
+            [".minecraft/saves/world.dat", "1.txt", "2.txt"],
+            result.Files.Keys.OrderBy(static k => k, StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public void MinecraftFolder_IsSkippedByDefault()
+    {
+        // .minecraft 以点开头（算隐藏）：默认的「包含规则」是空的，所以默认不会同步它 ——
+        // 需要时在「设置 → 执行规则 → 包含规则」里加一条即可（见 IncludedRuleName_DoesNotHideOtherFiles）。
         using var tree = new TestTree("scan-minecraft");
         tree.Add(".minecraft/saves/world.dat", "W");
         tree.Add("visible.txt", "V");
 
         ScanResult result = new FileScanner(new ExcludeMatcher(), skipHiddenAndSystem: true).Scan(tree.Root);
 
-        Assert.Equal(2, result.FileCount);
-        Assert.Contains(".minecraft/saves/world.dat", result.Files.Keys);
+        Assert.Single(result.Files);
+        Assert.Contains("visible.txt", result.Files.Keys);
     }
 
     [Fact]

@@ -175,6 +175,14 @@ public sealed class AppText : INotifyPropertyChanged
 
     public string EmptyRows => T("No items match the filter.", "没有符合条件的项目。");
 
+    /// <summary>扫描完成但一条可比条目都没有（对应关系的文件夹为空，或文件都被排除规则滤掉了）。</summary>
+    public string NoComparableItemsHint => T(
+        "Nothing to compare: neither side has any file to sync. Check the mapped folders and the exclude rules in Settings.",
+        "没有可比较的文件：两端的对应文件夹里都没有可同步的条目。请检查对应关系里的文件夹，以及「设置 → 执行规则」里的排除规则。");
+
+    /// <summary>结果页右上角的摘要：扫描完成但没有可比条目。</summary>
+    public string NothingToCompare => T("Nothing to compare", "没有可比较的项目");
+
     /// <summary>「开始执行」前的核对：文件很多时扫描要几十秒，用一个弹窗说明正在比对。</summary>
     public string ComparingFilesTitle => T("Comparing files", "正在比对文件");
 
@@ -230,13 +238,20 @@ public sealed class AppText : INotifyPropertyChanged
         "Keep temporary copies of overwritten files for undo",
         "允许覆盖后保留临时副本用于撤销");
 
-    public string ExcludeRulesSection => T("File (folder) rules", "文件（夹）规则");
+    public string ExcludeRulesSection => T("Sync rules", "执行规则");
 
     /// <summary>规则卡片里第一组小标题：排除规则。</summary>
-    public string ExcludeRulesLabel => T("Excluded files", "排除的文件");
+    public string ExcludeRulesLabel => T("Exclude rules", "排除规则");
 
-    /// <summary>规则卡片里第二组小标题：包含规则（默认含 <c>.minecraft</c>，可以删除）。</summary>
-    public string IncludeRulesLabel => T("Included files", "包含的文件");
+    /// <summary>规则卡片里第二组小标题：包含规则（额外包含，不会被排除规则挡掉）。</summary>
+    public string IncludeRulesLabel => T("Include rules", "包含规则");
+
+    /// <summary>
+    /// 「包含规则」下面的说明：这些规则是<strong>额外包含</strong> —— 命中的文件一定参与同步，其余文件照旧。
+    /// </summary>
+    public string IncludeRulesHint => T(
+        "Files matching these rules are always synced (even if hidden); everything else follows the exclude rules. A plain name such as .minecraft matches that folder at any depth.",
+        "命中这些规则的文件一定会同步（带隐藏属性也一样），其余文件照旧按排除规则处理。只写名字（如.minecraft）表示任意层级下的同名文件夹。");
 
     public string NewRulePlaceholder => T("New rule, e.g. **/node_modules/**", "新增规则，例如 **/node_modules/**");
 

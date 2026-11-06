@@ -1,6 +1,6 @@
 #define MyAppName "Serva"
 #ifndef MyAppVersion
-  #define MyAppVersion "0.3.4"
+  #define MyAppVersion "0.3.5"
 #endif
 #define MyAppPublisher "ERSAN-exe"
 #define MyAppExeName "Serva.exe"

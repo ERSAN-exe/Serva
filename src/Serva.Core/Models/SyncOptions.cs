@@ -54,15 +54,22 @@ public sealed class SyncOptions
     /// <summary>排除规则（glob，支持 * 与 **）。默认含内置的文件夹 / 文件规则。</summary>
     public List<string> ExcludePatterns { get; set; } = [.. ExcludeMatcher.DefaultExcludePatterns];
 
-    /// <summary>仅包含规则；非空时，未命中的文件一律忽略。</summary>
+    /// <summary>
+    /// 旧版本的「仅包含」白名单：非空时，未命中的文件一律忽略。
+    /// <para>
+    /// 设置页的「包含的文件」其实是「额外包含」的意思，所以界面不再往这里写规则；旧设置里的条目
+    /// 会在 <see cref="Normalize"/> 里搬进 <see cref="AlwaysIncludePatterns"/>。
+    /// 保留这个属性只是为了读得懂旧设置文件（以及 <see cref="ExcludeMatcher"/> 的白名单能力）。
+    /// </para>
+    /// </summary>
     public List<string> IncludePatterns { get; set; } = [];
 
     /// <summary>
-    /// 「包含的文件」规则：命中的路径<strong>不会被排除</strong>（优先于排除规则），
-    /// 并且即使带「隐藏 / 系统」属性（如 <c>.minecraft</c>）也照常扫描。
+    /// 「包含规则」：命中的路径<strong>不会被排除</strong>（优先于排除规则），
+    /// 并且即使带「隐藏 / 系统」属性也照常扫描。
     /// <para>
-    /// 默认值来自 <see cref="ExcludeMatcher.DefaultIncludedPatterns"/>；与排除规则不同，
-    /// 这里<strong>允许用户删除</strong>（设置页「包含的文件」里的小 ×），删掉后不会自动补回。
+    /// 默认<strong>为空</strong>（不再预置 <c>.minecraft</c>）。用户可以在「设置 → 执行规则 → 包含规则」
+    /// 里增删，删掉后不会自动补回。
     /// </para>
     /// </summary>
     public List<string> AlwaysIncludePatterns { get; set; } = [.. ExcludeMatcher.DefaultIncludedPatterns];
@@ -98,9 +105,25 @@ public sealed class SyncOptions
             }
         }
 
-        // 「包含的文件」不在这里补默认值：用户可以在设置页把 .minecraft 删掉，
-        // 删掉之后就不该再被自动加回来。旧设置文件里没有这一项时，
-        // 反序列化会保留属性初始化器给出的默认值。
+        // 「包含规则」不在这里补默认值（默认就是空的）：用户删掉的规则不该再被自动加回来。
+        // 旧设置文件里没有这一项时，反序列化会保留属性初始化器给出的默认值。
+
+        // 旧版本把「包含规则」写进了 IncludePatterns（白名单：没命中的文件全部消失），
+        // 与设置页上「包含」的含义（额外包含、隐藏也照扫）相反。这里统一搬进 AlwaysIncludePatterns，
+        // 用户添加过的规则照旧生效，但不会再让别的文件消失。
+        if (IncludePatterns.Count > 0)
+        {
+            foreach (string rule in IncludePatterns)
+            {
+                if (!string.IsNullOrWhiteSpace(rule)
+                    && !AlwaysIncludePatterns.Contains(rule, StringComparer.OrdinalIgnoreCase))
+                {
+                    AlwaysIncludePatterns.Add(rule);
+                }
+            }
+
+            IncludePatterns.Clear();
+        }
     }
 
     public SyncOptions Clone() => new()

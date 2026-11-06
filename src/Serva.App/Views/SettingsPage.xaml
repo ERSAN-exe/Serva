@@ -388,7 +388,7 @@
                         <Border Height="1" Background="{ThemeResource CardStrokeColorDefaultBrush}" />
 
                         <StackPanel Padding="16,12" Spacing="10">
-                            <!-- 排除的文件 -->
+                            <!-- 排除规则 -->
                             <StackPanel Spacing="4">
                                 <TextBlock Style="{StaticResource ServaFieldLabel}" Text="{x:Bind Text.ExcludeRulesLabel, Mode=OneWay}" />
                                 <ScrollViewer HorizontalScrollBarVisibility="Auto" HorizontalScrollMode="Enabled" VerticalScrollMode="Disabled">
@@ -402,9 +402,11 @@
                                 </ScrollViewer>
                             </StackPanel>
 
-                            <!-- 包含的文件（默认含 .minecraft，可以直接删掉） -->
+                            <!-- 包含规则（额外包含：命中的文件一定同步，隐藏也照扫） -->
                             <StackPanel Spacing="4">
                                 <TextBlock Style="{StaticResource ServaFieldLabel}" Text="{x:Bind Text.IncludeRulesLabel, Mode=OneWay}" />
+                                <!-- 这些规则是白名单：加了「包含」之后，只有命中的文件才会同步。 -->
+                                <TextBlock Style="{StaticResource SettingsHint}" Text="{x:Bind Text.IncludeRulesHint, Mode=OneWay}" />
                                 <ScrollViewer HorizontalScrollBarVisibility="Auto" HorizontalScrollMode="Enabled" VerticalScrollMode="Disabled">
                                     <ItemsControl ItemTemplate="{StaticResource IncludeRuleTemplate}" ItemsSource="{x:Bind ViewModel.IncludeRules}">
                                         <ItemsControl.ItemsPanel>

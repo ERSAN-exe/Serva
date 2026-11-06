@@ -258,8 +258,9 @@ public sealed partial class ComparePage : Page
             return;
         }
 
-        Task scanning = ViewModel.ScanAndCompareAsync();
+        Task<bool> scanning = ViewModel.ScanAndCompareAsync();
         ContentDialog? comparing = null;
+        bool scanned = false;
 
         try
         {
@@ -270,7 +271,7 @@ public sealed partial class ComparePage : Page
                 _ = comparing.ShowAsync();
             }
 
-            await scanning;
+            scanned = await scanning;
         }
         finally
         {
@@ -284,7 +285,9 @@ public sealed partial class ComparePage : Page
             }
         }
 
-        if (ViewModel.HasResults && Frame is { } frame)
+        // 只有扫描真的成功（设备没被拔掉、路径都读得到）才进结果页 ——
+        // 否则旧结果还在，会出现「设备断开后反而跳进结果页」。
+        if (scanned && ViewModel.HasResults && Frame is { } frame)
         {
             // 从右侧滑入，明确「进入下一层」的方向感。
             var transition = new SlideNavigationTransitionInfo
